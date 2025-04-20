@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.28.2)
 
 project(crc
     VERSION 0.1.0
@@ -11,6 +11,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
+option(CRC_MODULE "build the library as a module" OFF)
+
 add_library(crc INTERFACE)
 add_library(crc::crc ALIAS crc)
 target_sources(crc
@@ -18,6 +20,17 @@ target_sources(crc
         include/crc/crc.hpp
 )
 target_compile_features(crc INTERFACE cxx_std_20)
+
+if(CRC_MODULE)
+    add_library(crc-module)
+    add_library(crc::crc-module ALIAS crc-module)
+    target_sources(crc-module
+        PUBLIC FILE_SET CXX_MODULES BASE_DIRS src FILES
+            src/crc.cppm
+    )
+    target_link_libraries(crc-module PUBLIC crc)
+    target_compile_features(crc-module PUBLIC cxx_std_20)
+endif()
 
 install(
     TARGETS crc
@@ -64,4 +77,8 @@ if(BUILD_TESTING)
     add_executable(tests)
     target_sources(tests PRIVATE test/tests.cpp)
     target_link_libraries(tests PRIVATE Catch2::Catch2WithMain crc::crc)
+    if(CRC_MODULE)
+        target_compile_definitions(tests PRIVATE CRC_TEST_MODULE)
+        target_link_libraries(tests PRIVATE crc::crc-module)
+    endif()
 endif()

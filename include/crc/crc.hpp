@@ -43,6 +43,9 @@
 #include <type_traits>
 #include <utility>
 
+// This is defined when building as a module and when building tests.
+#ifndef CRC_JUST_THE_INCLUDES
+
 #ifdef CRC_EXPORT_SYMBOLS
 #define CRC_EXPORT export
 #else
@@ -340,5 +343,7 @@ CRC_EXPORT inline constexpr auto crc64_xz                {crc<std::uint64_t, 64,
 #undef CRC_RETURNS
 #undef CRC_STATIC_CALL_OPERATOR
 #undef CRC_CONST_CALL_OPERATOR
+
+#endif // CRC_JUST_THE_INCLUDES
 
 #endif // CRC_HPP_INCLUDED

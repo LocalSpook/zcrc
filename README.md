@@ -10,7 +10,7 @@ A C++20 SIMD-accelerated high-performance constexpr-capable single-header-only C
 Most likely, all you're looking for is a simple function that calculates a common CRC variant.
 
 ```cpp
-#include <crc/crc.hpp>
+#include <crc/crc.hpp> // Or: import crc;
 
 std::string_view data {"Hello world!"};
 std::uint32_t crc1 {crc::crc32c(data)}; // Takes a range...
@@ -148,10 +148,19 @@ cmake -B build [-G Ninja]
 cmake --build build
 ```
 
+To also build the module, add `-DCRC_MODULE=ON`, then pass `crc::crc-module` to `target_link_libraries`.
+The module cannot currently be installed, so this is only available when using FetchContent.
+
 To build tests, add `-DBUILD_TESTING=ON`.
 The resulting test binary will be `build/bin/tests`.
-The testing framework is Catch2;
+Our testing framework is Catch2;
 it will be downloaded automatically using FetchContent.
+If you also configured with `-DCRC_MODULE=ON`,
+the module tests will be added to the binary.
+We have a 2 by 2 testing matrix:
+compile versus run time, and header versus module.
+To test just the header, run `./build/bin/tests --section header`.
+To test just the module, run `./build/bin/tests --section module`.
 
 ## Miscellaneous
 
