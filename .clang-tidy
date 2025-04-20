@@ -1,0 +1,25 @@
+Checks:
+  - android-*
+  - boost-*
+  - bugprone-*
+  - cert-*
+  - clang-analyzer-*
+  - cppcoreguidelines-*
+  - concurrency-*
+  - misc-*
+  - modernize-*
+  - performance-*
+  - portability-*
+
+  - -modernize-use-trailing-return-type
+  - -cppcoreguidelines-pro-bounds-constant-array-index
+  - -cppcoreguidelines-avoid-magic-numbers
+  - -cppcoreguidelines-macro-usage
+  - -misc-no-recursion
+  - -cert-dcl21-cpp # https://github.com/llvm/llvm-project/issues/42788
+
+CheckOptions:
+  cppcoreguidelines-avoid-do-while.IgnoreMacros: true
+
+WarningsAsErrors: "-*"
+FormatStyle: file

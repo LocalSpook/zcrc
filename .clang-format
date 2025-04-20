@@ -1,0 +1,147 @@
+# This is the config for clang-format, an automatic code formatter.
+# Introduction: https://clang.llvm.org/docs/ClangFormat.html
+# Supported options: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+
+Language: Cpp
+Standard: Latest
+
+ColumnLimit: 100
+
+UseTab: Never
+TabWidth: 4
+IndentWidth: 4
+PPIndentWidth: 4
+ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+AccessModifierOffset: -4
+
+LineEnding: LF
+InsertNewlineAtEOF: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtEOF: true
+
+IndentCaseBlocks: true
+IndentAccessModifiers: false
+IndentExternBlock: false
+IndentCaseLabels: true
+IndentGotoLabels: true
+IndentRequiresClause: false
+RequiresClausePosition: OwnLine
+IndentPPDirectives: BeforeHash
+IndentWrappedFunctionNames: false
+LambdaBodyIndentation: OuterScope
+RequiresExpressionIndentation: OuterScope
+NamespaceIndentation: None
+
+AlignAfterOpenBracket: BlockIndent
+AlignArrayOfStructures: Right
+AlignEscapedNewlines: Left
+AlignOperands: Align
+AlignConsecutiveAssignments:
+  Enabled:          false
+  AcrossEmptyLines: false
+  AcrossComments:   false
+  AlignCompound:    false
+  PadOperators:     false
+AlignConsecutiveBitFields:
+  Enabled:          false
+  AcrossEmptyLines: false
+  AcrossComments:   false
+AlignConsecutiveDeclarations:
+  Enabled:          false
+  AcrossEmptyLines: false
+  AcrossComments:   false
+AlignConsecutiveMacros:
+  Enabled:          true
+  AcrossEmptyLines: false
+  AcrossComments:   false
+AlignTrailingComments:
+  Kind:           Always
+  OverEmptyLines: 0
+
+BinPackArguments: false
+BinPackParameters: false
+PackConstructorInitializers: Never
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: false
+
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCompoundRequirementOnASingleLine: true
+AllowShortLambdasOnASingleLine: All
+
+AllowBreakBeforeNoexceptSpecifier: OnlyWithParen
+AlwaysBreakBeforeMultilineStrings: false
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Attach
+Cpp11BracedListStyle: true
+BreakBeforeInlineASMColon: OnlyMultiline
+BreakBeforeTernaryOperators: true
+BreakAdjacentStringLiterals: false
+BreakAfterAttributes: Never
+BreakBeforeConceptDeclarations: Always
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+BreakStringLiterals: false
+
+CommentPragmas: "*NOLINT"
+
+DerivePointerAlignment: false
+PointerAlignment: Middle
+ReferenceAlignment: Left
+
+QualifierAlignment: Custom
+QualifierOrder: ["inline", "static", "friend", "constexpr", "const", "volatile", "restrict", "type"]
+
+ReflowComments: true
+RemoveSemicolon: true
+# RemoveParentheses: Never
+InsertBraces: true
+SeparateDefinitionBlocks: Always
+
+ShortNamespaceLines: 0
+FixNamespaceComments: true
+
+EmptyLineAfterAccessModifier: Leave
+EmptyLineBeforeAccessModifier: Always
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeCpp11BracedList: true
+SpaceAroundPointerQualifiers: Both
+SpaceBeforeCtorInitializerColon: false
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpacesInAngles: Never
+SpaceBeforeParens: ControlStatementsExceptControlMacros
+BitFieldColonSpacing: Both
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpacesBeforeTrailingComments: 1
+SpacesInSquareBrackets: false
+SpacesInParens: Never
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: -1
+
+SortUsingDeclarations: LexicographicNumeric
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeIsMainRegex: "$"
+IncludeCategories:
+  - {Regex: "<[^.]*>", Priority: 1} # Standard C++ headers (<chrono>, <experimental/audio>)
+  - {Regex: "<.*>", Priority: 2}    # Other system headers (<unistd.h>, <some_lib.h++>)
+  - {Regex: "\".*\"", Priority: 3}  # This project's headers ("foo.hpp")
+
+SkipMacroDefinitionBody: false
+AttributeMacros: []
+StatementAttributeLikeMacros: []
+StatementMacros: []
+WhitespaceSensitiveMacros: []
