@@ -177,6 +177,12 @@ CRC_EXPORT template<
     CRCType XOROut>
 class crc : public detail::crc_base<CRCType, std::max<std::size_t>(Width, 8), Poly << (8 - std::min<CRCType>(Width, 8)), RefIn> {
 public:
+    static_assert(Width != 0);
+    static_assert(std::numeric_limits<CRCType>::digits >= Width);
+    static_assert((Poly & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
+    static_assert((Init & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
+    static_assert((XOROut & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
+
     using crc_type = CRCType;
     static constexpr std::size_t width {Width};
     static constexpr CRCType poly {Poly};
