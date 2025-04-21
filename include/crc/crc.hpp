@@ -33,9 +33,11 @@
 #ifndef CRC_HPP_INCLUDED
 #define CRC_HPP_INCLUDED
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <limits>
