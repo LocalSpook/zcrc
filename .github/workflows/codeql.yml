@@ -1,0 +1,47 @@
+name: CodeQL
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: '18 5 * * 3'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    strategy:
+      fail-fast: false
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install clang-19 clang-tools-19 cmake ninja-build
+
+    - name: Configure build
+      run: |
+        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-19 -DBUILD_TESTING=ON -DCRC_MODULE=ON
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: cpp
+        build-mode: manual
+
+    - name: Build
+      run: |
+        cmake --build build
+
+    - name: Perform CodeQL analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: /language:cpp

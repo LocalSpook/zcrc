@@ -3,6 +3,8 @@
 **Warning: this library is under construction.
 It's functional, but its main selling point—SIMD acceleration—is not yet implemented.**
 
+[![CodeQL](https://github.com/LocalSpook/crc/actions/workflows/codeql.yml/badge.svg)](https://github.com/LocalSpook/crc/actions/workflows/codeql.yml)
+
 A C++20 SIMD-accelerated high-performance constexpr-capable single-header-only CRC library with over 100 predefined CRCs and the ability to create custom ones.
 
 ## API
