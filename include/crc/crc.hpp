@@ -88,7 +88,7 @@ template <typename T>
 template <typename T>
 [[nodiscard]] constexpr T reflect(const T n, const std::size_t b) noexcept {
     // We reflect 10 bits at a time, transforming JIHGFEDCBA into ABCDEFGHIJ,
-    // using a pseudo-SIMD algorithm.
+    // using the following pseudo-SIMD algorithm:
     //
     // 1. Multiply to broadcast the bits:
     //       ______________________________________________________JIHGFEDCBA
