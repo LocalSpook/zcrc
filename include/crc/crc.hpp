@@ -143,22 +143,27 @@ using table_entry_t =
 template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn>
 inline constexpr auto table {[] {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-    std::array<detail::table_entry_t<7 + std::bit_width(Poly), RefIn>, 256> m_table;
-    for (std::size_t i {0}; i < 256; ++i) {
-        auto r {static_cast<CRCType>((RefIn ? detail::reflect(i, 8) : i) << (Width - 8))};
-        for (std::size_t j {0}; j < 8; ++j) {
-            r = (r << 1) ^ (detail::bit_is_set(r, Width - 1) ? Poly : 0);
+    std::array<detail::table_entry_t<7 + std::bit_width(Poly), RefIn>, 256> table_ {0};
+    // Calculate the power of two entries.
+    if constexpr (RefIn) {
+        table_[128] = detail::reflect(Poly, Width);
+        for (std::size_t i {128}; i > 1; i >>= 1) {
+            table_[i >> 1] = (table_[i] >> 1) ^ (detail::bit_is_set(table_[i], 0) ? detail::reflect(Poly, Width) : 0);
         }
-
-        r &= detail::bottom_n_mask<CRCType>(Width);
-
-        if constexpr (RefIn) {
-            r = detail::reflect(r, Width);
+    } else {
+        table_[1] = Poly;
+        for (std::size_t i {1}; i < 128; i <<= 1) {
+            table_[i << 1] = ((table_[i] << 1) ^ (detail::bit_is_set(table_[i], Width - 1) ? Poly : 0))
+                      & detail::bottom_n_mask<CRCType>(Width);
         }
-
-        m_table[i] = r;
     }
-    return m_table;
+    // Calculate the rest of the entries.
+    for (std::size_t i {2}; i < 256; i <<= 1) {
+        for (std::size_t j {1}; j < i; ++j) {
+            table_[i ^ j] = table_[i] ^ table_[j];
+        }
+    }
+    return table_;
 }()};
 
 template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn>
