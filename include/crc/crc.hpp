@@ -153,8 +153,7 @@ inline constexpr auto table {[] {
     } else {
         table_[1] = Poly;
         for (std::size_t i {1}; i < 128; i <<= 1) {
-            table_[i << 1] = ((table_[i] << 1) ^ (detail::bit_is_set(table_[i], Width - 1) ? Poly : 0))
-                      & detail::bottom_n_mask<CRCType>(Width);
+            table_[i << 1] = (table_[i] << 1) ^ (detail::bit_is_set(table_[i], Width - 1) ? Poly : 0);
         }
     }
     // Calculate the rest of the entries.
