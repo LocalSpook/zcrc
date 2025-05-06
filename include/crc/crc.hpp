@@ -130,20 +130,19 @@ template <typename T, std::endian E, std::input_iterator I>
 }
 
 // clang-format off
-template <std::size_t Bits, bool RefIn>
-using table_entry_t =
-    std::conditional_t<RefIn, std::uint64_t,
+template <std::size_t Bits>
+using least_uint =
     std::conditional_t<Bits <=  8, std::uint8_t,
     std::conditional_t<Bits <= 16, std::uint16_t,
     std::conditional_t<Bits <= 32, std::uint32_t,
     std::uint64_t
->>>>;
+>>>;
 // clang-format on
 
 template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn>
 inline constexpr auto table {[] {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-    std::array<detail::table_entry_t<7 + std::bit_width(Poly), RefIn>, 256> table_ {0};
+    std::array<std::conditional_t<RefIn, CRCType, detail::least_uint<7 + std::bit_width(Poly)>>, 256> table_ {0};
     // Calculate the power of two entries.
     if constexpr (RefIn) {
         table_[128] = detail::reflect(Poly, Width);
