@@ -11,6 +11,10 @@ Checks:
   - performance-*
   - portability-*
 
+  # Too many false positives when working with ranges.
+  # If curious, see https://tristanbrindle.com/posts/ranges-and-forwarding-references
+  - -cppcoreguidelines-missing-std-forward
+
   - -modernize-use-trailing-return-type
   - -cppcoreguidelines-pro-bounds-constant-array-index
   - -cppcoreguidelines-avoid-magic-numbers

@@ -67,7 +67,35 @@
 #define CRC_CONST_CALL_OPERATOR const
 #endif
 
+#if __cplusplus >= 202302L && __cpp_constexpr >= 202211L
+#define CRC_STATIC23 static
+#else
+#define CRC_STATIC23
+#endif
+
 namespace crc::inline v1 {
+
+namespace detail {
+
+struct algorithm_base {};
+
+} // namespace detail
+
+namespace algorithms {
+
+CRC_EXPORT template <std::size_t N>
+struct slice_by_t : detail::algorithm_base {
+    static_assert(N != 0);
+    explicit slice_by_t() = default;
+};
+
+CRC_EXPORT template <std::size_t N>
+inline constexpr slice_by_t<N> slice_by {};
+
+} // namespace algorithms
+
+CRC_EXPORT template <typename T>
+concept algorithm = std::derived_from<T, detail::algorithm_base>;
 
 namespace detail {
 
@@ -120,6 +148,40 @@ template <typename T>
         : ((detail::reflect(n & 0x3FF, 10) << (b - 10)) | detail::reflect(n >> 10, b - 10));
 }
 
+// std::abs is only constexpr in C++23 >_>
+template <typename T>
+[[nodiscard]] constexpr T abs(const T n) noexcept {
+    return n < 0 ? -n : n;
+}
+
+// A generalized shift, where shifting by more bits than a type's width simply
+// returns 0, and shifting by a negative amount shifts in the opposite direction
+// (both cases are UB with the builtin shift).
+//
+// This greatly simplifies some of our algorithms.
+template <typename T>
+[[nodiscard]] constexpr T lshift(const T n, const std::int64_t b) noexcept {
+    if (detail::abs(b) >= (sizeof(T) * 8)) {
+        return 0;
+    } else if (b < 0) {
+        return n >> -b;
+    } else {
+        return n << b;
+    }
+}
+
+// Ditto.
+template <typename T>
+[[nodiscard]] constexpr T rshift(const T n, const std::int64_t b) noexcept {
+    if (detail::abs(b) >= (sizeof(T) * 8)) {
+        return 0;
+    } else if (b < 0) {
+        return n << -b;
+    } else {
+        return n >> b;
+    }
+}
+
 template <typename T, std::endian E, std::input_iterator I>
 [[nodiscard]] constexpr T read(I it) {
     std::array<char, sizeof(T)> bytes; // NOLINT(cppcoreguidelines-pro-type-member-init)
@@ -139,43 +201,69 @@ using least_uint =
 >>>;
 // clang-format on
 
-template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn>
-inline constexpr auto table {[] {
+template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn, std::size_t Slices>
+inline constexpr auto tables {[] {
+    // TODO: get rid of the "Slices > 1" condition and properly implement
+    // the size reduction optimization for multiple slices.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-    std::array<std::conditional_t<RefIn, CRCType, detail::least_uint<7 + std::bit_width(Poly)>>, 256> table_ {0};
-    // Calculate the power of two entries.
-    if constexpr (RefIn) {
-        table_[128] = detail::reflect(Poly, Width);
-        for (std::size_t i {128}; i > 1; i >>= 1) {
-            table_[i >> 1] = (table_[i] >> 1) ^ (detail::bit_is_set(table_[i], 0) ? detail::reflect(Poly, Width) : 0);
+    std::array<std::array<std::conditional_t<(RefIn || Slices > 1),
+        CRCType, detail::least_uint<7 + std::bit_width(Poly)>>, 256>, Slices> tables_;
+    for (CRCType r {RefIn ? 1 : (1ULL << (Width - 1))}; auto& table : tables_ | std::views::reverse) {
+        // Step 1: calculate the power of two entries.
+        table[0] = 0;
+        for (std::size_t i {0}; i < 8; ++i) {
+            if constexpr (RefIn) {
+                r = table[1 << (7 - i)] = (r >> 1) ^ (detail::bit_is_set(r, 0) ? detail::reflect(Poly, Width) : 0);
+            } else {
+                r = table[1 << i] = (r << 1) ^ (detail::bit_is_set(r, Width - 1) ? Poly : 0);
+            }
         }
-    } else {
-        table_[1] = Poly;
-        for (std::size_t i {1}; i < 128; i <<= 1) {
-            table_[i << 1] = (table_[i] << 1) ^ (detail::bit_is_set(table_[i], Width - 1) ? Poly : 0);
+        // Step 2: calculate the rest of the entries.
+        for (std::size_t i {2}; i < 256; i <<= 1) {
+            for (std::size_t j {1}; j < i; ++j) {
+                table[i ^ j] = table[i] ^ table[j];
+            }
         }
     }
-    // Calculate the rest of the entries.
-    for (std::size_t i {2}; i < 256; i <<= 1) {
-        for (std::size_t j {1}; j < i; ++j) {
-            table_[i ^ j] = table_[i] ^ table_[j];
-        }
-    }
-    return table_;
+    return tables_;
 }()};
 
 template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn>
-struct crc_base {
-    [[nodiscard]] static constexpr CRCType process(CRCType crc, std::ranges::contiguous_range auto&& r) {
-        for (const std::uint8_t byte : r) {
+class crc_base {
+public:
+    template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+    [[nodiscard]] static constexpr CRCType process(const CRCType crc, I begin, S end)
+        CRC_RETURNS(crc_base::process(algorithms::slice_by<8>, crc, std::move(begin), std::move(end)))
+
+    template <std::size_t N, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+    [[nodiscard]] static constexpr CRCType process(algorithms::slice_by_t<N>, CRCType crc, I it, S end) {
+        const auto fold {[&]<std::size_t... B>(std::index_sequence<B...>) {
+            CRC_STATIC23 constexpr auto t {detail::tables<CRCType, Width, Poly, RefIn, N>.end() - sizeof...(B)};
             if constexpr (RefIn) {
-                crc = (crc >> 8) ^ detail::table<CRCType, Width, Poly, RefIn>[
-                    static_cast<std::uint8_t>(crc) ^ byte];
+                crc = (t[B][(detail::rshift(crc, 8 * B) & 0xFF) ^ it[B]] ^ ...
+                    ^ detail::rshift(crc, sizeof...(B) * 8));
             } else {
-                crc = (crc << 8) ^ detail::table<CRCType, Width, Poly, RefIn>[
-                    static_cast<std::uint8_t>(crc >> (Width - 8)) ^ byte];
+                crc = (t[B][(detail::rshift(crc, Width - 8 * (B + 1)) & 0xFF) ^ it[B]] ^ ...
+                    ^ detail::lshift(crc, sizeof...(B) * 8));
             }
+        }};
+
+        // Process the main body in chunks of N bytes.
+        const auto tail_len {(end - it) % N};
+        for (const auto end_of_main_loop {end - tail_len}; it != end_of_main_loop; it += N) {
+            fold(std::make_index_sequence<N>{});
         }
+
+        // Process the tail in powers of 2.
+        [&]<std::size_t... P>(std::index_sequence<P...>){
+            ([&]{
+                if (tail_len & (1 << P)) {
+                    fold(std::make_index_sequence<1 << P>{});
+                    it += 1 << P;
+                }
+            }(), ...);
+        }(std::make_index_sequence<std::bit_width(N - 1)>{});
+
         return crc;
     }
 };
@@ -230,15 +318,25 @@ public:
         return crc ^ XOROut;
     }
 
+    template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+    requires detail::byte_like<std::iter_value_t<I>>
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
+        CRC_RETURNS(crc::finalize(crc::process(algo, crc::initialize(), std::move(begin), std::move(end))))
+
+    template <std::ranges::contiguous_range R>
+    requires detail::byte_like<std::ranges::range_value_t<R>>
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
+        CRC_RETURNS(crc::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
+
+    template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+    requires detail::byte_like<std::iter_value_t<I>>
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
+        CRC_RETURNS(crc::finalize(crc::process(crc::initialize(), std::move(begin), std::move(end))))
+
     template <std::ranges::contiguous_range R>
     requires detail::byte_like<std::ranges::range_value_t<R>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType operator()(R&& r) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(crc::finalize(crc::process(crc::initialize(), std::forward<R>(r))))
-
-    template <std::contiguous_iterator I, std::sentinel_for<I> S>
-    requires detail::byte_like<std::iter_value_t<I>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(crc::operator()(std::ranges::subrange(std::move(begin), std::move(end))))
+        CRC_RETURNS(crc::operator()(std::ranges::begin(r), std::ranges::end(r)))
 };
 
 // clang-format off
@@ -366,6 +464,7 @@ CRC_EXPORT inline constexpr auto crc64_xz                {crc<std::uint64_t, 64,
 #undef CRC_RETURNS
 #undef CRC_STATIC_CALL_OPERATOR
 #undef CRC_CONST_CALL_OPERATOR
+#undef CRC_STATIC23
 
 #endif // CRC_JUST_THE_INCLUDES
 

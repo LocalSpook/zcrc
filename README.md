@@ -26,16 +26,43 @@ For more complex cases, the CRC can be built up incrementally:
 auto c {crc::crc64_xz::initialize()};
 
 // Step 2: feed it data.
-c.process("Some da"sv);
-c.process(u8"ta processed in "sv);
-c.process(std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
+c = crc::crc64_xz::process(c, "Some da"sv);
+c = crc::crc64_xz::process(c, u8"ta processed in "sv);
+c = crc::crc64_xz::process(c, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
 
 // Step 3: extract the final CRC.
-auto checksum {c.finalize()};
-assert(checksum == crc::crc64_xz("Some data processed in parts"sv));
+c = crc::crc64_xz::finalize(c);
+assert(c == crc::crc64_xz("Some data processed in parts"sv));
 ```
 
 Notice that you can pass any byte-like type to `process`, without any casts.
+
+There are many algorithms for calculating CRCs.
+The library will pick a good default, but it isn't omniscient,
+so it provides the ability to explicitly choose which algorithm you want.
+The following algorithms are available:
+
+- `crc::algorithms::slice_by<N>`: process N bytes at a time.
+  Requires an `N * 256 * sizeof(CRCType)` byte lookup table.
+  For example, CRC32C implemented with slice-by-4 requires a 4 KiB lookup table.
+
+To specify an algorithm, pass it as the first parameter to a CRC's call operator or `process` function:
+
+```cpp
+crc::crc32_mpeg2(crc::algorithms::slice_by<8>, ...);
+
+auto crc {crc::crc32_mpeg2::initialize()};
+crc = crc::crc32_mpeg2::process(crc::algorithms::slice_by<8>, crc, ...);
+```
+
+If you want to write your own functions that take CRC algorithms as arguments,
+constrain them with the `crc::algorithm` concept:
+
+```cpp
+void my_function(crc::algorithm auto algo, ...) {
+    crc::crc32c(algo, ...); // Pass along the algorithm.
+}
+```
 
 The CRC you're looking for almost certainly comes predefined
 (if it's missing, consider [filing an issue](https://github.com/LocalSpook/crc/issues)),
@@ -70,43 +97,7 @@ inline constexpr auto crc32_reflected {crc::crc<
 
 Note that CRCs of width greater than 64 are currently unsupported.
 
-Every CRC is an instance of the `crc::crc` class template,
-which provides the following interface:
-
-```cpp
-template <
-    typename CRCType,
-    std::size_t Width,
-    CRCType Poly,
-    CRCType Init,
-    bool RefIn,
-    bool RefOut,
-    CRCType XOROut>
-class crc {
-    using crc_type = ...;
-    static constexpr std::size_t width;
-    static constexpr crc_type poly;
-    static constexpr crc_type init;
-    static constexpr crc_type xorout;
-    static constexpr bool refin;
-    static constexpr bool refout;
-    static constexpr crc_type residue;
-
-    template <std::ranges::contiguous_range R>
-    requires __byte_like<std::ranges::range_value_t<R>>
-    static constexpr crc_type operator()(R&& range);
-
-    template <std::contiguous_iterator I, std::sentinel_for<I> S>
-    requires __byte_like<std::iter_value_t<I>>
-    static constexpr crc_type operator()(I begin, S end);
-};
-
-// Where __byte_like is defined as:
-template <typename T>
-concept __byte_like = std::is_trivially_copyable_v<T> && sizeof(T) == 1 && !std::same_as<std::remove_cv_t<T>, bool>;
-```
-
-CRCs are function objects, so you can pass them to other algorithms:
+CRCs are function objects and can be passed to other algorithms:
 
 ```cpp
 std::vector<std::string> strings {"Apple", "Banana", "Cherry", "Dragonfruit"};
