@@ -41,6 +41,7 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -161,7 +162,7 @@ template <typename T>
 // This greatly simplifies some of our algorithms.
 template <typename T>
 [[nodiscard]] constexpr T lshift(const T n, const std::int64_t b) noexcept {
-    if (detail::abs(b) >= (sizeof(T) * 8)) {
+    if (static_cast<std::size_t>(detail::abs(b)) >= (sizeof(T) * 8)) {
         return 0;
     } else if (b < 0) {
         return n >> -b;
@@ -173,7 +174,7 @@ template <typename T>
 // Ditto.
 template <typename T>
 [[nodiscard]] constexpr T rshift(const T n, const std::int64_t b) noexcept {
-    if (detail::abs(b) >= (sizeof(T) * 8)) {
+    if (static_cast<std::size_t>(detail::abs(b)) >= (sizeof(T) * 8)) {
         return 0;
     } else if (b < 0) {
         return n << -b;
@@ -230,20 +231,16 @@ inline constexpr auto tables {[] {
 
 template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn>
 class crc_base {
-public:
-    template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
-    [[nodiscard]] static constexpr CRCType process(const CRCType crc, I begin, S end)
-        CRC_RETURNS(crc_base::process(algorithms::slice_by<8>, crc, std::move(begin), std::move(end)))
-
+private:
     template <std::size_t N, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
-    [[nodiscard]] static constexpr CRCType process(algorithms::slice_by_t<N>, CRCType crc, I it, S end) {
+    [[nodiscard]] static constexpr CRCType process_impl(algorithms::slice_by_t<N>, CRCType crc, I it, S end) noexcept {
         const auto fold {[&]<std::size_t... B>(std::index_sequence<B...>) {
             CRC_STATIC23 constexpr auto t {detail::tables<CRCType, Width, Poly, RefIn, N>.end() - sizeof...(B)};
             if constexpr (RefIn) {
-                crc = (t[B][(detail::rshift(crc, 8 * B) & 0xFF) ^ it[B]] ^ ...
+                crc = (t[B][(detail::rshift(crc, 8 * B) & 0xFF) ^ static_cast<std::uint8_t>(it[B])] ^ ...
                     ^ detail::rshift(crc, sizeof...(B) * 8));
             } else {
-                crc = (t[B][(detail::rshift(crc, Width - 8 * (B + 1)) & 0xFF) ^ it[B]] ^ ...
+                crc = (t[B][(detail::rshift(crc, Width - 8 * (B + 1)) & 0xFF) ^ static_cast<std::uint8_t>(it[B])] ^ ...
                     ^ detail::lshift(crc, sizeof...(B) * 8));
             }
         }};
@@ -266,6 +263,43 @@ public:
 
         return crc;
     }
+
+public:
+    // Consider a user program that calculates CRCs over several different types:
+    //
+    //    crc::crc32c(std::span<char>)
+    //    crc::crc32c(std::span<unsigned char>)
+    //    crc::crc32c(std::span<char8_t>)
+    //
+    // These calls all do the exact same thing, but each is a separate template
+    // instantiation, so the compiler cannot deduplicate them in the final binary.
+    // To achieve that, those calls must type-erase their input to const char * and
+    // delegate to another function. But wait! We can't do that cast at compile time!
+    // So we need to *conditionally* do that type erasure.
+    //
+    // This is a mess, but it's what we need to do to provide a zero-cost abstraction.
+
+    template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+    requires detail::byte_like<std::iter_value_t<I>>
+    [[nodiscard]] static constexpr CRCType process(const algorithm auto algo, const CRCType crc, I it, S end)
+        CRC_RETURNS(std::is_constant_evaluated()
+            ? crc_base::process_impl(algo, crc,
+                std::to_address(it),
+                std::to_address(it) + (end - it))
+            : crc_base::process_impl(algo, crc,
+                reinterpret_cast<const char *>(std::to_address(it)),
+                reinterpret_cast<const char *>(std::to_address(it)) + (end - it))
+        )
+
+    template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+    requires detail::byte_like<std::iter_value_t<I>>
+    [[nodiscard]] static constexpr CRCType process(const CRCType crc, I begin, S end)
+        CRC_RETURNS(crc_base::process(algorithms::slice_by<8>, crc, std::move(begin), std::move(end)))
+
+    template <std::ranges::contiguous_range R>
+    requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+    [[nodiscard]] static constexpr CRCType process(const CRCType crc, R&& r)
+        CRC_RETURNS(crc_base::process(crc, std::ranges::begin(r), std::ranges::end(r)))
 };
 
 } // namespace detail
@@ -324,7 +358,7 @@ public:
         CRC_RETURNS(crc::finalize(crc::process(algo, crc::initialize(), std::move(begin), std::move(end))))
 
     template <std::ranges::contiguous_range R>
-    requires detail::byte_like<std::ranges::range_value_t<R>>
+    requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(crc::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
 
@@ -334,7 +368,7 @@ public:
         CRC_RETURNS(crc::finalize(crc::process(crc::initialize(), std::move(begin), std::move(end))))
 
     template <std::ranges::contiguous_range R>
-    requires detail::byte_like<std::ranges::range_value_t<R>>
+    requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType operator()(R&& r) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(crc::operator()(std::ranges::begin(r), std::ranges::end(r)))
 };
