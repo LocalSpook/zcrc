@@ -10,49 +10,60 @@ A C++20 SIMD-accelerated high-performance constexpr-capable single-header-only C
 ## API
 
 Most likely, all you're looking for is a simple function that calculates a common CRC variant.
+There are two fundamental CRC operations: *building* a CRC to append to your message,
+and *verifying* whether an existing message is valid:
 
 ```cpp
 #include <crc/crc.hpp> // Or: import crc;
 
+// Build a CRC:
 std::string_view data {"Hello world!"};
-std::uint32_t crc1 {crc::crc32c(data)}; // Takes a range...
-std::uint32_t crc2 {crc::crc32c(data.begin(), data.end())}; // ...or an iterator pair.
+std::uint32_t crc {crc::crc32c::calculate(data)};
+
+// Verify a CRC:
+if (!crc::crc8_bluetooth::is_valid(some_message)) {
+    throw std::runtime_error {"Message is corrupted!"};
+}
 ```
 
 For more complex cases, the CRC can be built up incrementally:
 
 ```cpp
 // Step 1: initialize CRC state.
-auto c {crc::crc64_xz::initialize()};
+crc::crc64_xz crc {};
 
 // Step 2: feed it data.
-c = crc::crc64_xz::process(c, "Some da"sv);
-c = crc::crc64_xz::process(c, u8"ta processed in "sv);
-c = crc::crc64_xz::process(c, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
+// Notice how you can pass in any byte-like type, without any casts.
+crc = crc::process(crc, "Some da"sv);
+crc = crc::process(crc, u8"ta processed in "sv);
+crc = crc::process(crc, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
 
 // Step 3: extract the final CRC.
-c = crc::crc64_xz::finalize(c);
-assert(c == crc::crc64_xz("Some data processed in parts"sv));
+std::uint64_t result {crc::finalize(crc};
+assert(result == crc::crc64_xz::calculate("Some data processed in parts"sv));
 ```
 
-Notice that you can pass any byte-like type to `process`, without any casts.
+All the functions above also have overloads taking iterator pairs instead of ranges.
+
+### Choosing an algorithm
 
 There are many algorithms for calculating CRCs.
-The library will pick a good default, but it isn't omniscient,
-so it provides the ability to explicitly choose which algorithm you want.
+The library will pick a good default (currently, that's `crc::algorithms::slice_by<8>`),
+but it isn't omniscient,
+so you have the ability to specify which algorithm you want.
 The following algorithms are available:
 
-- `crc::algorithms::slice_by<N>`: process N bytes at a time.
+- **`crc::algorithms::slice_by<N>`:** process `N` bytes at a time.
   Requires an `N * 256 * sizeof(CRCType)` byte lookup table.
   For example, CRC32C implemented with slice-by-4 requires a 4 KiB lookup table.
 
-To specify an algorithm, pass it as the first parameter to a CRC's call operator or `process` function:
+To specify an algorithm, pass it as the first parameter to `crc::<...>::calculate` or `crc::process`:
 
 ```cpp
-crc::crc32_mpeg2(crc::algorithms::slice_by<8>, ...);
+crc::crc32_mpeg2::calculate(crc::algorithms::slice_by<8>, ...);
 
-auto crc {crc::crc32_mpeg2::initialize()};
-crc = crc::crc32_mpeg2::process(crc::algorithms::slice_by<8>, crc, ...);
+crc::crc32_mpeg2 crc {};
+crc = crc::process(crc::algorithms::slice_by<8>, crc, ...);
 ```
 
 If you want to write your own functions that take CRC algorithms as arguments,
@@ -60,16 +71,18 @@ constrain them with the `crc::algorithm` concept:
 
 ```cpp
 void my_function(crc::algorithm auto algo, ...) {
-    crc::crc32c(algo, ...); // Pass along the algorithm.
+    crc::crc32c::calculate(algo, ...); // Pass along the algorithm.
 }
 ```
+
+### Defining your own CRCs
 
 The CRC you're looking for almost certainly comes predefined
 (if it's missing, consider [filing an issue](https://github.com/LocalSpook/crc/issues)),
 but you can define your own too:
 
 ```cpp
-inline constexpr auto crc32c {crc::crc<
+using crc32c = crc::crc<
     std::uint32_t, // The CRC's type; an unsigned integer at least as wide as the polynomial.
     32,            // The polynomial's width.
     0x1EDC6F41,    // The polynomial, with an implicit leading term.
@@ -77,31 +90,37 @@ inline constexpr auto crc32c {crc::crc<
     true,          // True if the bits in a byte should be ordered from LSb to MSb, false if vice-versa.
     true,          // True if the result should be reflected during finalization.
     0xFFFFFFFF     // The value XORed into the result at the very end, after any reflection.
->{}};
+>;
 ```
 
-You can adapt existing CRCs like so:
+Or you can adapt existing CRCs:
 
 ```cpp
 // Identical to crc::crc32, but with the opposite bit ordering.
-inline constexpr auto crc32_reflected {crc::crc<
+using crc32_reflected = crc::crc<
     crc::crc32::crc_type,
     crc::crc32::width,
     crc::crc32::poly,
     crc::crc32::initial,
     !crc::crc32::refin, // ⭐
-    crc::crc32::refout,
+    !crc::crc32::refout, // ⭐
     crc::crc32::xorout
->{}};
+>;
 ```
 
 Note that CRCs of width greater than 64 are currently unsupported.
 
-CRCs are function objects and can be passed to other algorithms:
+### Composability
+
+All provided functions are function objects and can be passed to other algorithms:
 
 ```cpp
 std::vector<std::string> strings {"Apple", "Banana", "Cherry", "Dragonfruit"};
-std::vector<std::uint32_t> crcs {std::from_range, strings | std::views::transform(crc::crc32c)};
+std::vector<std::uint32_t> crcs {std::from_range, strings | std::views::transform(crc::crc32c::calculate)};
+
+// Calculate a CRC over several noncontiguous chunks.
+std::vector<std::vector<unsigned char>> data {...};
+std::uint32_t crc {crc::finalize(std::ranges::fold_left(data, crc::crc32c {}, crc::process))};
 ```
 
 ## Installing
