@@ -249,6 +249,14 @@ private:
 
 public:
     [[nodiscard]] constexpr crc_base() noexcept = default;
+
+    [[nodiscard]] friend constexpr bool operator==(const crc_base lhs, const crc_base rhs) noexcept {
+        if constexpr (RefIn) {
+            return lhs.m_crc == rhs.m_crc;
+        } else {
+            return (lhs.m_crc & detail::bottom_n_mask<CRCType>(Width)) == (rhs.m_crc & detail::bottom_n_mask<CRCType>(Width));
+        }
+    }
 };
 
 template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn,
@@ -313,6 +321,13 @@ struct process_fn {
         )
 
     template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut,
+              std::ranges::contiguous_range R>
+    requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const algorithm auto algo, const crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
+        CRC_RETURNS(process_fn::operator()(algo, crc, std::ranges::begin(r), std::ranges::end(r)))
+
+    template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut,
               std::contiguous_iterator I, std::sized_sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
@@ -365,7 +380,7 @@ struct is_valid_fn {
             }
         }()};
 
-        return (state.m_crc & (detail::bottom_n_mask<CRCType>(Width) << ((RefIn && Width < 8) ? (8 - Width) : 0))) == residue;
+        return (state.m_crc & detail::bottom_n_mask<CRCType>(Width)) == residue;
     }
 };
 
@@ -422,8 +437,6 @@ public:
 
     static constexpr convenience_member_fn<detail::finalize_fn> calculate {};
     static constexpr convenience_member_fn<detail::is_valid_fn> is_valid {};
-
-    [[nodiscard]] friend constexpr bool operator==(crc, crc) noexcept = default;
 };
 
 // clang-format off

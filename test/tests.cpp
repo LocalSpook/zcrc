@@ -212,6 +212,21 @@ TEMPLATE_TEST_CASE("basic functionality checks", "", c<1>, c<2>, c<3>, c<4>, c<5
 #endif
 }
 
+TEST_CASE("equality comparison") {
+    CHECK_MATRIX(crc::crc10_atm {} == crc::crc10_atm {});
+    CHECK_MATRIX(!(crc::crc10_atm {} != crc::crc10_atm {}));
+
+    CHECK_MATRIX(crc::crc10_atm {} == crc::process(crc::crc10_atm {}, "\0\0\0\0\0"sv));
+
+    // The LHS message is just zeroes, and the RHS message is the CRC10-ATM generator
+    // polynomial, 0x633. They produce the same checksums, but different garbage bits at the
+    // top of the shift register, so this test ensures that operator== ignores those bits.
+    CHECK_MATRIX(
+        crc::process(crc::algorithms::slice_by<1>, crc::crc10_atm {}, "\x00\x00"sv) ==
+        crc::process(crc::algorithms::slice_by<1>, crc::crc10_atm {}, "\x06\x33"sv)
+    );
+}
+
 TEST_CASE("is_valid") {
     CHECK_MATRIX(crc::crc32c::is_valid("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x4E\x79\xDD\x46"sv));
     CHECK_MATRIX(crc::crc16_arc::is_valid("\x33\x22\x55\xAA\xBB\xCC\xDD\xEE\xFF\x98\xAE"sv));
