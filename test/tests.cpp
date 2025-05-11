@@ -225,6 +225,18 @@ TEST_CASE("equality comparison") {
         crc::process(crc::algorithms::slice_by<1>, crc::crc10_atm {}, "\x00\x00"sv) ==
         crc::process(crc::algorithms::slice_by<1>, crc::crc10_atm {}, "\x06\x33"sv)
     );
+
+    // This is just the example from the README.
+    CHECK_MATRIX([] {
+        crc::crc64_xz crc {};
+
+        crc = crc::process(crc, "Some da"sv);
+        crc = crc::process(crc, u8"ta processed in "sv);
+        crc = crc::process(crc, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
+
+        const std::uint64_t result {crc::finalize(crc)};
+        return result;
+    }() == crc::crc64_xz::calculate("Some data processed in parts"sv));
 }
 
 TEST_CASE("is_valid") {

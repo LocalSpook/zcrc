@@ -39,7 +39,7 @@ crc = crc::process(crc, u8"ta processed in "sv);
 crc = crc::process(crc, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
 
 // Step 3: extract the final CRC.
-std::uint64_t result {crc::finalize(crc};
+std::uint64_t result {crc::finalize(crc)};
 assert(result == crc::crc64_xz::calculate("Some data processed in parts"sv));
 ```
 

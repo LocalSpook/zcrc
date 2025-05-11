@@ -100,6 +100,8 @@ concept algorithm = std::derived_from<T, detail::algorithm_base>;
 
 namespace detail {
 
+inline constexpr auto& default_algorithm {algorithms::slice_by<8>};
+
 template <typename T>
 concept byte_like = std::is_trivially_copyable_v<T> && sizeof(T) == 1 && !std::same_as<std::remove_cv_t<T>, bool>;
 
@@ -191,6 +193,117 @@ template <typename T, std::endian E, std::input_iterator I>
     return std::bit_cast<T>(bytes);
 }
 
+[[nodiscard]] constexpr auto calculate_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
+[[nodiscard]] constexpr bool is_valid_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
+
+struct process_fn;
+struct finalize_fn;
+struct is_valid_fn;
+
+} // namespace detail
+
+CRC_EXPORT template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut>
+class crc {
+private:
+    CRCType m_crc {[] () noexcept {
+        if constexpr (RefIn) {
+            return detail::reflect(Init, Width);
+        } else if constexpr (Width < 8) {
+            return Init << (8 - Width);
+        } else {
+            return Init;
+        }
+    }()};
+
+    [[nodiscard]] constexpr crc(const CRCType crc) noexcept : m_crc {crc} {}
+
+    friend struct detail::process_fn;
+    friend struct detail::finalize_fn;
+    friend struct detail::is_valid_fn;
+
+    struct calculate_member_fn {
+        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+        requires detail::byte_like<std::iter_value_t<I>>
+        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType
+        operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
+            CRC_RETURNS(detail::calculate_member_fn_impl(algo, crc {}, std::move(begin), std::move(end)))
+
+        template <std::ranges::contiguous_range R>
+        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType
+        operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
+            CRC_RETURNS(detail::calculate_member_fn_impl(algo, crc {}, std::ranges::begin(r), std::ranges::end(r)))
+
+        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+        requires detail::byte_like<std::iter_value_t<I>>
+        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType
+        operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
+            CRC_RETURNS(detail::calculate_member_fn_impl(detail::default_algorithm, crc {}, std::move(begin), std::move(end)))
+
+        template <std::ranges::contiguous_range R>
+        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType
+        operator()(R&& r) CRC_CONST_CALL_OPERATOR
+            CRC_RETURNS(detail::calculate_member_fn_impl(detail::default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
+    };
+
+    struct is_valid_member_fn {
+        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+        requires detail::byte_like<std::iter_value_t<I>>
+        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
+        operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
+            CRC_RETURNS(detail::is_valid_member_fn_impl(algo, crc {}, std::move(begin), std::move(end)))
+
+        template <std::ranges::contiguous_range R>
+        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
+        operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
+            CRC_RETURNS(detail::is_valid_member_fn_impl(algo, crc {}, std::ranges::begin(r), std::ranges::end(r)))
+
+        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+        requires detail::byte_like<std::iter_value_t<I>>
+        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
+        operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
+            CRC_RETURNS(detail::is_valid_member_fn_impl(detail::default_algorithm, crc {}, std::move(begin), std::move(end)))
+
+        template <std::ranges::contiguous_range R>
+        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
+        operator()(R&& r) CRC_CONST_CALL_OPERATOR
+            CRC_RETURNS(detail::is_valid_member_fn_impl(detail::default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
+    };
+
+public:
+    static_assert(Width != 0);
+    static_assert(std::numeric_limits<CRCType>::digits >= Width);
+    static_assert((Poly & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
+    static_assert((Init & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
+    static_assert((XOROut & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
+
+    using crc_type = CRCType;
+    static constexpr std::size_t width {Width};
+    static constexpr CRCType poly {Poly};
+    static constexpr CRCType init {Init};
+    static constexpr bool refin {RefIn};
+    static constexpr bool refout {RefOut};
+    static constexpr CRCType xorout {XOROut};
+
+    [[nodiscard]] constexpr crc() noexcept = default;
+
+    [[nodiscard]] friend constexpr bool operator==(const crc lhs, const crc rhs) noexcept {
+        if constexpr (RefIn) {
+            return lhs.m_crc == rhs.m_crc;
+        } else {
+            return (lhs.m_crc & detail::bottom_n_mask<CRCType>(Width)) == (rhs.m_crc & detail::bottom_n_mask<CRCType>(Width));
+        }
+    }
+
+    static constexpr calculate_member_fn calculate {};
+    static constexpr is_valid_member_fn is_valid {};
+};
+
+namespace detail {
+
 // clang-format off
 template <std::size_t Bits>
 using least_uint =
@@ -227,37 +340,6 @@ inline constexpr auto tables {[] {
     }
     return tables_;
 }()};
-
-template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut>
-class crc_base {
-private:
-    CRCType m_crc {[] () noexcept {
-        if constexpr (RefIn) {
-            return detail::reflect(Init, Width);
-        } else if constexpr (Width < 8) {
-            return Init << (8 - Width);
-        } else {
-            return Init;
-        }
-    }()};
-
-    [[nodiscard]] constexpr crc_base(const CRCType crc) noexcept : m_crc {crc} {}
-
-    friend struct process_fn;
-    friend struct finalize_fn;
-    friend struct is_valid_fn;
-
-public:
-    [[nodiscard]] constexpr crc_base() noexcept = default;
-
-    [[nodiscard]] friend constexpr bool operator==(const crc_base lhs, const crc_base rhs) noexcept {
-        if constexpr (RefIn) {
-            return lhs.m_crc == rhs.m_crc;
-        } else {
-            return (lhs.m_crc & detail::bottom_n_mask<CRCType>(Width)) == (rhs.m_crc & detail::bottom_n_mask<CRCType>(Width));
-        }
-    }
-};
 
 template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn,
           std::size_t N, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
@@ -307,8 +389,8 @@ struct process_fn {
     template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut,
               std::contiguous_iterator I, std::sized_sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const algorithm auto algo, const crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) CRC_CONST_CALL_OPERATOR
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const algorithm auto algo, const crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(std::is_constant_evaluated()
             ? detail::process_fn_impl<CRCType, Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
                 algo, crc.m_crc,
@@ -323,29 +405,29 @@ struct process_fn {
     template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut,
               std::ranges::contiguous_range R>
     requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const algorithm auto algo, const crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const algorithm auto algo, const crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(process_fn::operator()(algo, crc, std::ranges::begin(r), std::ranges::end(r)))
 
     template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut,
               std::contiguous_iterator I, std::sized_sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, I begin, S end) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(process_fn::operator()(algorithms::slice_by<8>, crc, std::move(begin), std::move(end)))
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, I begin, S end) CRC_CONST_CALL_OPERATOR
+        CRC_RETURNS(process_fn::operator()(detail::default_algorithm, crc, std::move(begin), std::move(end)))
 
     template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut,
               std::ranges::contiguous_range R>
     requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(process_fn::operator()(crc, std::ranges::begin(r), std::ranges::end(r)))
 };
 
 struct finalize_fn {
     template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr CRCType
-    operator()(crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> state) CRC_CONST_CALL_OPERATOR noexcept {
+    operator()(crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> state) CRC_CONST_CALL_OPERATOR noexcept {
         if constexpr (Width < 8 && !RefIn) {
             state.m_crc >>= 8 - Width;
         }
@@ -363,7 +445,7 @@ struct finalize_fn {
 struct is_valid_fn {
     template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
-    operator()(crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> state) CRC_CONST_CALL_OPERATOR noexcept {
+    operator()(crc<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> state) CRC_CONST_CALL_OPERATOR noexcept {
         CRC_STATIC23 constexpr CRCType residue {[] {
             CRCType residue_ {XOROut};
 
@@ -390,54 +472,17 @@ CRC_EXPORT inline constexpr detail::process_fn process {};
 CRC_EXPORT inline constexpr detail::finalize_fn finalize {};
 CRC_EXPORT inline constexpr detail::is_valid_fn is_valid {};
 
-CRC_EXPORT template <typename CRCType, std::size_t Width, CRCType Poly, CRCType Init, bool RefIn, bool RefOut, CRCType XOROut>
-class crc : public detail::crc_base<CRCType, Width, Poly, Init, RefIn, RefOut, XOROut> {
-private:
-    template <typename WrappedFn>
-    struct convenience_member_fn {
-        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
-        requires detail::byte_like<std::iter_value_t<I>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr auto
-        operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(WrappedFn{}(process(algo, crc {}, std::move(begin), std::move(end))))
+namespace detail {
 
-        template <std::ranges::contiguous_range R>
-        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr auto
-        operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(convenience_member_fn::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
+[[nodiscard]] constexpr auto calculate_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept {
+    return finalize(process(algo, crc, std::move(begin), std::move(end)));
+}
 
-        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
-        requires detail::byte_like<std::iter_value_t<I>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr auto
-        operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(WrappedFn{}(process(crc {}, std::move(begin), std::move(end))))
+[[nodiscard]] constexpr bool is_valid_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept {
+    return is_valid(process(algo, crc, std::move(begin), std::move(end)));
+}
 
-        template <std::ranges::contiguous_range R>
-        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr auto
-        operator()(R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(convenience_member_fn::operator()(std::ranges::begin(r), std::ranges::end(r)))
-    };
-
-public:
-    static_assert(Width != 0);
-    static_assert(std::numeric_limits<CRCType>::digits >= Width);
-    static_assert((Poly & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
-    static_assert((Init & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
-    static_assert((XOROut & ~detail::bottom_n_mask<CRCType>(Width)) == 0);
-
-    using crc_type = CRCType;
-    static constexpr std::size_t width {Width};
-    static constexpr CRCType poly {Poly};
-    static constexpr CRCType init {Init};
-    static constexpr bool refin {RefIn};
-    static constexpr bool refout {RefOut};
-    static constexpr CRCType xorout {XOROut};
-
-    static constexpr convenience_member_fn<detail::finalize_fn> calculate {};
-    static constexpr convenience_member_fn<detail::is_valid_fn> is_valid {};
-};
+} // namespace detail
 
 // clang-format off
 
