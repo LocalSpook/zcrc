@@ -294,7 +294,7 @@ public:
         if constexpr (RefIn) {
             return lhs.m_crc == rhs.m_crc;
         } else {
-            return (lhs.m_crc & detail::bottom_n_mask<CRCType>(Width)) == (rhs.m_crc & detail::bottom_n_mask<CRCType>(Width));
+            return ((lhs.m_crc ^ rhs.m_crc) & detail::bottom_n_mask<CRCType>(Width)) == 0;
         }
     }
 
