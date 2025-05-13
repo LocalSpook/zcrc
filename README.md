@@ -57,10 +57,14 @@ The following algorithms are available:
   Requires an `N * 256 * sizeof(CRCType)` byte lookup table.
   For example, CRC32C implemented with slice-by-4 requires a 4 KiB lookup table.
 
-To specify an algorithm, pass it as the first parameter to `crc::<...>::calculate` or `crc::process`:
+To specify an algorithm, pass it as the first parameter to `crc::<...>::calculate`, `crc::<...>::is_valid`, or `crc::process`:
 
 ```cpp
 crc::crc32_mpeg2::calculate(crc::algorithms::slice_by<8>, ...);
+
+if (!crc::crc32_mpeg2::is_valid(crc::algorithms::slice_by<8>, ...)) {
+    ...
+}
 
 crc::crc32_mpeg2 crc {};
 crc = crc::process(crc::algorithms::slice_by<8>, crc, ...);
