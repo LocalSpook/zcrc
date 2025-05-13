@@ -290,12 +290,11 @@ public:
 
     [[nodiscard]] constexpr crc() noexcept = default;
 
-    [[nodiscard]] friend constexpr bool operator==(const crc lhs, const crc rhs) noexcept {
-        if constexpr (RefIn) {
-            return lhs.m_crc == rhs.m_crc;
-        } else {
-            return ((lhs.m_crc ^ rhs.m_crc) & detail::bottom_n_mask<CRCType>(Width)) == 0;
-        }
+    [[nodiscard]] friend constexpr bool operator==(crc, crc) noexcept
+        requires (RefIn || sizeof(CRCType) == 1 || (sizeof(CRCType) * 8) == Width) = default;
+
+    [[nodiscard]] friend constexpr bool operator==(crc lhs, crc rhs) noexcept {
+        return ((lhs.m_crc ^ rhs.m_crc) & detail::bottom_n_mask<CRCType>(Width)) == 0;
     }
 
     static constexpr calculate_member_fn calculate {};

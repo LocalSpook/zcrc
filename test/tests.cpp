@@ -237,6 +237,16 @@ TEST_CASE("equality comparison") {
         const std::uint64_t result {crc::finalize(crc)};
         return result;
     }() == crc::crc64_xz::calculate("Some data processed in parts"sv));
+
+#if __has_builtin(__is_trivially_equality_comparable)
+    CHECK_MATRIX(__is_trivially_equality_comparable(crc::crc32c));
+    CHECK_MATRIX(__is_trivially_equality_comparable(crc::crc64_ms));
+    CHECK_MATRIX(__is_trivially_equality_comparable(crc::crc64_we));
+    CHECK_MATRIX(__is_trivially_equality_comparable(crc::crc3_gsm));
+    CHECK_MATRIX(__is_trivially_equality_comparable(crc::crc8_autosar));
+    CHECK_MATRIX(__is_trivially_equality_comparable(crc::crc14_darc));
+    CHECK_MATRIX(!__is_trivially_equality_comparable(crc::crc40_gsm));
+#endif
 }
 
 TEST_CASE("is_valid") {
