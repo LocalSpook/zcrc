@@ -289,13 +289,7 @@ public:
     static constexpr CRCType xorout {XOROut};
 
     [[nodiscard]] constexpr crc() noexcept = default;
-
-    [[nodiscard]] friend constexpr bool operator==(crc, crc) noexcept
-        requires (RefIn || sizeof(CRCType) == 1 || (sizeof(CRCType) * 8) == Width) = default;
-
-    [[nodiscard]] friend constexpr bool operator==(crc lhs, crc rhs) noexcept {
-        return ((lhs.m_crc ^ rhs.m_crc) & detail::bottom_n_mask<CRCType>(Width)) == 0;
-    }
+    [[nodiscard]] friend constexpr bool operator==(crc, crc) noexcept = default;
 
     static constexpr calculate_member_fn calculate {};
     static constexpr is_valid_member_fn is_valid {};
@@ -368,7 +362,7 @@ template <typename CRCType, std::size_t Width, CRCType Poly, bool RefIn,
         ), ...);
     }(std::make_index_sequence<std::bit_width(N - 1)>{});
 
-    return crc;
+    return crc & detail::bottom_n_mask<CRCType>(Width);
 }
 
 struct process_fn {
@@ -431,8 +425,6 @@ struct finalize_fn {
             state.m_crc >>= 8 - Width;
         }
 
-        state.m_crc &= detail::bottom_n_mask<CRCType>(Width);
-
         if constexpr (RefIn != RefOut) {
             state.m_crc = detail::reflect(state.m_crc, Width);
         }
@@ -452,6 +444,8 @@ struct is_valid_fn {
                 residue_ = (residue_ << 1) ^ (detail::bit_is_set(residue_, Width - 1) ? Poly : 0);
             }
 
+            residue_ &= detail::bottom_n_mask<CRCType>(Width);
+
             if constexpr (RefIn) {
                 return detail::reflect(residue_, Width);
             } else if constexpr (Width < 8) {
@@ -461,7 +455,7 @@ struct is_valid_fn {
             }
         }()};
 
-        return (state.m_crc & detail::bottom_n_mask<CRCType>(Width)) == residue;
+        return state.m_crc == residue;
     }
 };
 
