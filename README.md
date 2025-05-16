@@ -54,7 +54,7 @@ so you have the ability to specify which algorithm you want.
 The following algorithms are available:
 
 - **`crc::algorithms::slice_by<N>`:** process `N` bytes at a time.
-  Requires an `N * 256 * sizeof(CRCType)` byte lookup table.
+  Requires an `N * 256 * sizeof(crc::<...>::crc_type)` byte lookup table.
   For example, CRC32C implemented with slice-by-4 requires a 4 KiB lookup table.
 
 To specify an algorithm, pass it as the first parameter to `crc::<...>::calculate`, `crc::<...>::is_valid`, or `crc::process`:
@@ -87,7 +87,6 @@ but you can define your own too:
 
 ```cpp
 using crc32c = crc::crc<
-    std::uint32_t, // The CRC's type; an unsigned integer at least as wide as the polynomial.
     32,            // The polynomial's width.
     0x1EDC6F41,    // The polynomial, with an implicit leading term.
     0xFFFFFFFF,    // The initial value of the CRC register.
@@ -102,7 +101,6 @@ Or you can adapt existing CRCs:
 ```cpp
 // Identical to crc::crc32, but with the opposite bit ordering.
 using crc32_reflected = crc::crc<
-    crc::crc32::crc_type,
     crc::crc32::width,
     crc::crc32::poly,
     crc::crc32::initial,
