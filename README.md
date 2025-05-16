@@ -34,8 +34,8 @@ crc::crc64_xz crc {};
 
 // Step 2: feed it data.
 // Notice how you can pass in any byte-like type, without any casts.
-crc = crc::process(crc, "Some da"sv);
-crc = crc::process(crc, u8"ta processed in "sv);
+crc = crc::process(crc, "Some data"sv);
+crc = crc::process(crc, u8" processed in "sv);
 crc = crc::process(crc, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
 
 // Step 3: extract the final CRC.

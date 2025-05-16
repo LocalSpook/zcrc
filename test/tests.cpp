@@ -230,8 +230,8 @@ TEST_CASE("equality comparison") {
     CHECK_MATRIX([] {
         crc::crc64_xz crc {};
 
-        crc = crc::process(crc, "Some da"sv);
-        crc = crc::process(crc, u8"ta processed in "sv);
+        crc = crc::process(crc, "Some data"sv);
+        crc = crc::process(crc, u8" processed in "sv);
         crc = crc::process(crc, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
 
         const std::uint64_t result {crc::finalize(crc)};
