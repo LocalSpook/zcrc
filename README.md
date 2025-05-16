@@ -9,7 +9,7 @@ A C++20 SIMD-accelerated high-performance constexpr-capable single-header-only C
 
 ## API
 
-Most likely, all you're looking for is a simple function that calculates a common CRC variant.
+Most likely, all you're looking for is a simple function that computes a common CRC variant.
 There are two fundamental CRC operations: *building* a CRC to append to your message,
 and *verifying* whether an existing message is valid:
 
@@ -18,7 +18,7 @@ and *verifying* whether an existing message is valid:
 
 // Build a CRC:
 std::string_view data {"Hello world!"};
-std::uint32_t crc {crc::crc32c::calculate(data)};
+std::uint32_t crc {crc::crc32c::compute(data)};
 
 // Verify a CRC:
 if (!crc::crc8_bluetooth::is_valid(some_message)) {
@@ -40,7 +40,7 @@ crc = crc::process(crc, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
 
 // Step 3: extract the final CRC.
 std::uint64_t result {crc::finalize(crc)};
-assert(result == crc::crc64_xz::calculate("Some data processed in parts"sv));
+assert(result == crc::crc64_xz::compute("Some data processed in parts"sv));
 ```
 
 All the functions above also have overloads taking iterator pairs instead of ranges.
@@ -57,10 +57,10 @@ The following algorithms are available:
   Requires an `N * 256 * sizeof(crc::<...>::crc_type)` byte lookup table.
   For example, CRC32C implemented with slice-by-4 requires a 4 KiB lookup table.
 
-To specify an algorithm, pass it as the first parameter to `crc::<...>::calculate`, `crc::<...>::is_valid`, or `crc::process`:
+To specify an algorithm, pass it as the first parameter to `crc::<...>::compute`, `crc::<...>::is_valid`, or `crc::process`:
 
 ```cpp
-crc::crc32_mpeg2::calculate(crc::algorithms::slice_by<8>, ...);
+crc::crc32_mpeg2::compute(crc::algorithms::slice_by<8>, ...);
 
 if (!crc::crc32_mpeg2::is_valid(crc::algorithms::slice_by<8>, ...)) {
     ...
@@ -75,7 +75,7 @@ constrain them with the `crc::algorithm` concept:
 
 ```cpp
 void my_function(crc::algorithm auto algo, ...) {
-    crc::crc32c::calculate(algo, ...); // Pass along the algorithm.
+    crc::crc32c::compute(algo, ...); // Pass along the algorithm.
 }
 ```
 
@@ -118,9 +118,9 @@ All provided functions are function objects and can be passed to other algorithm
 
 ```cpp
 std::vector<std::string> strings {"Apple", "Banana", "Cherry", "Dragonfruit"};
-std::vector<std::uint32_t> crcs {std::from_range, strings | std::views::transform(crc::crc32c::calculate)};
+std::vector<std::uint32_t> crcs {std::from_range, strings | std::views::transform(crc::crc32c::compute)};
 
-// Calculate a CRC over several noncontiguous chunks.
+// Compute a CRC over several noncontiguous chunks.
 std::vector<std::vector<unsigned char>> data {...};
 std::uint32_t crc {crc::finalize(std::ranges::fold_left(data, crc::crc32c {}, crc::process))};
 ```

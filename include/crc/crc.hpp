@@ -26,7 +26,7 @@
 //
 // We provide dozens of predefined CRCs, but the typical user only needs
 // one or two of them. This means that defining a CRC (i.e. instantiating crc::crc)
-// must be cheap: specifically, it must NOT eagerly calculate lookup tables.
+// must be cheap: specifically, it must NOT eagerly compute lookup tables.
 //
 // The code has been ADL-proofed.
 
@@ -193,7 +193,7 @@ template <typename T, std::endian E, std::input_iterator I>
     return std::bit_cast<T>(bytes);
 }
 
-[[nodiscard]] constexpr auto calculate_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
+[[nodiscard]] constexpr auto compute_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
 [[nodiscard]] constexpr bool is_valid_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
 
 struct process_fn;
@@ -241,30 +241,30 @@ private:
     friend struct detail::finalize_fn;
     friend struct detail::is_valid_fn;
 
-    struct calculate_member_fn {
+    struct compute_member_fn {
         template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(detail::calculate_member_fn_impl(algo, crc {}, std::move(begin), std::move(end)))
+            CRC_RETURNS(detail::compute_member_fn_impl(algo, crc {}, std::move(begin), std::move(end)))
 
         template <std::ranges::contiguous_range R>
         requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(detail::calculate_member_fn_impl(algo, crc {}, std::ranges::begin(r), std::ranges::end(r)))
+            CRC_RETURNS(detail::compute_member_fn_impl(algo, crc {}, std::ranges::begin(r), std::ranges::end(r)))
 
         template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(detail::calculate_member_fn_impl(detail::default_algorithm, crc {}, std::move(begin), std::move(end)))
+            CRC_RETURNS(detail::compute_member_fn_impl(detail::default_algorithm, crc {}, std::move(begin), std::move(end)))
 
         template <std::ranges::contiguous_range R>
         requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(detail::calculate_member_fn_impl(detail::default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
+            CRC_RETURNS(detail::compute_member_fn_impl(detail::default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
     };
 
     struct is_valid_member_fn {
@@ -310,7 +310,7 @@ public:
     [[nodiscard]] constexpr crc() noexcept = default;
     [[nodiscard]] friend constexpr bool operator==(crc, crc) noexcept = default;
 
-    static constexpr calculate_member_fn calculate {};
+    static constexpr compute_member_fn compute {};
     static constexpr is_valid_member_fn is_valid {};
 };
 
@@ -324,7 +324,7 @@ inline constexpr auto tables {[] {
     std::array<std::array<std::conditional_t<(RefIn || Slices > 1),
         least_uint<Width>, detail::least_uint<7 + std::bit_width(Poly)>>, 256>, Slices> tables_;
     for (least_uint<Width> r {RefIn ? 1 : (1ULL << (Width - 1))}; auto& table : tables_ | std::views::reverse) {
-        // Step 1: calculate the power of two entries.
+        // Step 1: compute the power of two entries.
         table[0] = 0;
         for (std::size_t i {0}; i < 8; ++i) {
             if constexpr (RefIn) {
@@ -333,7 +333,7 @@ inline constexpr auto tables {[] {
                 r = table[1 << i] = (r << 1) ^ (detail::bit_is_set(r, Width - 1) ? Poly : 0);
             }
         }
-        // Step 2: calculate the rest of the entries.
+        // Step 2: compute the rest of the entries.
         for (std::size_t i {2}; i < 256; i <<= 1) {
             for (std::size_t j {1}; j < i; ++j) {
                 table[i ^ j] = table[i] ^ table[j];
@@ -375,7 +375,7 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
 }
 
 struct process_fn {
-    // Consider a user program that calculates CRCs over several different types:
+    // Consider a user program that computes CRCs over several different types:
     //
     //    crc::crc32c(std::span<char>)
     //    crc::crc32c(std::span<unsigned char>)
@@ -476,7 +476,7 @@ CRC_EXPORT inline constexpr detail::is_valid_fn is_valid {};
 
 namespace detail {
 
-[[nodiscard]] constexpr auto calculate_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept {
+[[nodiscard]] constexpr auto compute_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept {
     return finalize(process(algo, crc, std::move(begin), std::move(end)));
 }
 
