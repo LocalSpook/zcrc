@@ -377,9 +377,9 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
 struct process_fn {
     // Consider a user program that computes CRCs over several different types:
     //
-    //    crc::crc32c(std::span<char>)
-    //    crc::crc32c(std::span<unsigned char>)
-    //    crc::crc32c(std::span<char8_t>)
+    //    crc::crc32c::compute(std::span<char>)
+    //    crc::crc32c::compute(std::span<unsigned char>)
+    //    crc::crc32c::compute(std::span<char8_t>)
     //
     // These calls all do the exact same thing, but each is a separate template
     // instantiation, so the compiler cannot deduplicate them in the final binary.
