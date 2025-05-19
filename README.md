@@ -79,6 +79,28 @@ void my_function(crc::algorithm auto algo, ...) {
 }
 ```
 
+### Parallelizing the computation
+
+Computing CRCs is an embarrassingly parallel problem.
+To enable parallelization,
+simply wrap an ordinary algorithm with the `crc::algorithms::parallel` adaptor and pass it to `crc::<...>::compute`, `crc::<...>::is_valid`, or `crc::process` as you normally would:
+
+```cpp
+crc::crc32c::compute(crc::algorithms::parallel<crc::algorithms::slice_by<8>>, ...);
+```
+
+(The function is still constexpr! It'll just dispatch to a sequential algorithm if evaluated at compile time.)
+
+Note that parallelizing CRCs of width greater than 32 is currently unsupported.
+
+The parallel algorithm divides the message into as many chunks as the system has hardware threads.
+Each thread processes its chunk using the wrapped algorithm (in this case, `crc::algorithms::slice_by<8>`).
+Here's what the scaling can look like:
+
+![image](img/parallel_scaling.svg)
+
+To get specific numbers for your system, build the benchmarks as described in [Building](#building).
+
 ### Defining your own CRCs
 
 The CRC you're looking for almost certainly comes predefined
@@ -165,7 +187,7 @@ cmake --build build
 To also build the module, add `-DCRC_MODULE=ON`, then pass `crc::crc-module` to `target_link_libraries`.
 The module cannot currently be installed, so this is only available when using FetchContent.
 
-To build tests, add `-DBUILD_TESTING=ON`.
+To build tests, add `-DCRC_TEST=ON`.
 The resulting test binary will be `build/bin/tests`.
 Our testing framework is Catch2;
 it will be downloaded automatically using FetchContent.
@@ -175,6 +197,10 @@ We have a 2 by 2 testing matrix:
 compile versus run time, and header versus module.
 To test just the header, run `./build/bin/tests --section header`.
 To test just the module, run `./build/bin/tests --section module`.
+
+To build the benchmarks, add `-DCRC_BENCHMARK=ON`.
+The benchmarking framework is also Catch2,
+and the resulting binary will be `build/bin/benchmarks`.
 
 ## Miscellaneous
 

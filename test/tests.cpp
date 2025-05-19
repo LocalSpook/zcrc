@@ -5,15 +5,14 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <ranges>
 #include <string_view>
-#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
-
-// <ugly_code warning="Watch out!">
 
 #define CRC_JUST_THE_INCLUDES
 #include <crc/crc.hpp>
@@ -30,30 +29,32 @@ namespace header { // NOLINT(modernize-concat-nested-namespaces) (lol)
 
 } // namespace header
 
-#define CHECK_HEADER(...) SECTION("header") { \
-        namespace crc = header::crc;          \
-        static_assert(__VA_ARGS__);           \
-        CHECK(__VA_ARGS__);                   \
+#define CHECK_COMPILE_AND_RUN_TIME(...) [&] { \
+        static_assert(__VA_ARGS__);       \
+        CHECK(__VA_ARGS__); \
+    }()
+
+#define CHECK_HEADER(...) SECTION("header") {   \
+        namespace crc = header::crc;            \
+        CHECK_COMPILE_AND_RUN_TIME(__VA_ARGS__); \
     }
 
-#define CHECK_MODULE(...) SECTION("module") { \
-        static_assert(__VA_ARGS__);           \
-        CHECK(__VA_ARGS__);                   \
+#define CHECK_MODULE(...) SECTION("module") {   \
+        CHECK_COMPILE_AND_RUN_TIME(__VA_ARGS__); \
     }
 
 #ifdef CRC_TEST_MODULE
 import crc;
-#define CHECK_MATRIX(...) do { CHECK_HEADER(__VA_ARGS__); CHECK_MODULE(__VA_ARGS__); } while (false)
+#define CHECK_MATRIX(...) [&] { CHECK_HEADER(__VA_ARGS__); CHECK_MODULE(__VA_ARGS__); }()
 #else
-#define CHECK_MATRIX(...) do { CHECK_HEADER(__VA_ARGS__); } while (false)
+#define CHECK_MATRIX(...) [&] { CHECK_HEADER(__VA_ARGS__); }()
 #endif
-
-// </ugly_code>
 
 using namespace std::literals;
 
 TEST_CASE("compile-time checks") {
     CHECK_MATRIX(crc::algorithm<crc::algorithms::slice_by_t<0xC0FFEE>>);
+    CHECK_MATRIX(crc::algorithm<crc::algorithms::parallel_t<crc::algorithms::slice_by_t<0xC0FFEE>>>);
     CHECK_MATRIX(!crc::algorithm<int>);
     CHECK_MATRIX(std::regular_invocable<decltype(crc::crc32c::compute), std::vector<char>&>);
     CHECK_MATRIX(std::regular_invocable<decltype(crc::crc32c::compute), std::vector<unsigned char>&>);
@@ -67,9 +68,7 @@ TEST_CASE("compile-time checks") {
 template <std::size_t N>
 using c = std::integral_constant<std::size_t, N>;
 
-// Testing slice-by-10 is particularly important; the test data is 9 bytes long,
-// so we verify the algorithm works even when the main loop isn't entered.
-TEMPLATE_TEST_CASE("basic functionality checks", "", c<1>, c<2>, c<3>, c<4>, c<5>, c<10>) {
+TEMPLATE_TEST_CASE("basic functionality checks", "", c<1>, c<2>, c<3>, c<4>, c<5>) {
     static constexpr std::size_t N {TestType::value};
     static constexpr std::string_view test_data {"123456789"};
 
@@ -242,4 +241,80 @@ TEST_CASE("equality comparison") {
 TEST_CASE("is_valid") {
     CHECK_MATRIX(crc::crc32c::is_valid("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x4E\x79\xDD\x46"sv));
     CHECK_MATRIX(crc::crc16_arc::is_valid("\x33\x22\x55\xAA\xBB\xCC\xDD\xEE\xFF\x98\xAE"sv));
+}
+
+TEMPLATE_TEST_CASE("process_zero_bytes and parallel", "",
+    header::crc::crc3_gsm, header::crc::crc3_rohc, header::crc::crc4_g_704, header::crc::crc4_interlaken,
+    header::crc::crc5_epc_c1g2, header::crc::crc5_g_704, header::crc::crc5_usb, header::crc::crc6_cdma2000_a,
+    header::crc::crc6_cdma2000_b, header::crc::crc6_darc, header::crc::crc6_g_704, header::crc::crc6_gsm,
+    header::crc::crc7_mmc, header::crc::crc7_rohc, header::crc::crc7_umts, header::crc::crc8_autosar,
+    header::crc::crc8_bluetooth, header::crc::crc8_cdma2000, header::crc::crc8_darc, header::crc::crc8_dvb_s2,
+    header::crc::crc8_gsm_a, header::crc::crc8_gsm_b, header::crc::crc8_hitag, header::crc::crc8_i_432_1,
+    header::crc::crc8_i_code, header::crc::crc8_lte, header::crc::crc8_maxim_dow, header::crc::crc8_mifare_mad,
+    header::crc::crc8_nrsc_5, header::crc::crc8_opensafety, header::crc::crc8_rohc, header::crc::crc8_sae_j1850,
+    header::crc::crc8_smbus, header::crc::crc8_tech_3250, header::crc::crc8_wcdma, header::crc::crc10_atm,
+    header::crc::crc10_cdma2000, header::crc::crc10_gsm, header::crc::crc11_flexray, header::crc::crc11_umts,
+    header::crc::crc12_cdma2000, header::crc::crc12_dect, header::crc::crc12_gsm, header::crc::crc12_umts,
+    header::crc::crc13_bbc, header::crc::crc14_darc, header::crc::crc14_gsm, header::crc::crc15_can,
+    header::crc::crc15_mpt1327, header::crc::crc16_arc, header::crc::crc16_cdma2000, header::crc::crc16_cms,
+    header::crc::crc16_dds_110, header::crc::crc16_dect_r, header::crc::crc16_dect_x, header::crc::crc16_dnp,
+    header::crc::crc16_en_13757, header::crc::crc16_genibus, header::crc::crc16_gsm, header::crc::crc16_ibm_3740,
+    header::crc::crc16_ibm_sdlc, header::crc::crc16_iso_iec_14443_3_a, header::crc::crc16_kermit, header::crc::crc16_lj1200,
+    header::crc::crc16_m17, header::crc::crc16_maxim_dow, header::crc::crc16_mcrf4xx, header::crc::crc16_modbus,
+    header::crc::crc16_nrsc_5, header::crc::crc16_opensafety_a, header::crc::crc16_opensafety_b, header::crc::crc16_profibus,
+    header::crc::crc16_riello, header::crc::crc16_spi_fujitsu, header::crc::crc16_t10_dif, header::crc::crc16_teledisk,
+    header::crc::crc16_tms37157, header::crc::crc16_umts, header::crc::crc16_usb, header::crc::crc16_xmodem,
+    header::crc::crc17_can_fd, header::crc::crc21_can_fd, header::crc::crc24_ble, header::crc::crc24_flexray_a,
+    header::crc::crc24_flexray_b, header::crc::crc24_interlaken, header::crc::crc24_lte_a, header::crc::crc24_lte_b,
+    header::crc::crc24_openpgp, header::crc::crc24_os_9, header::crc::crc30_cdma, header::crc::crc31_philips,
+    header::crc::crc32_aixm, header::crc::crc32_autosar, header::crc::crc32_base91_d, header::crc::crc32,
+    header::crc::crc32_cd_rom_edc, header::crc::crc32_cksum, header::crc::crc32c, header::crc::crc32_iso_hdlc,
+    header::crc::crc32_jamcrc, header::crc::crc32_mef, header::crc::crc32_mpeg2, header::crc::crc32_xfer
+    // , header::crc::crc40_gsm,
+    // , header::crc::crc64_ecma_182,
+    // , header::crc::crc64_go_iso,
+    // , header::crc::crc64_ms,
+    // , header::crc::crc64_nvme,
+    // , header::crc::crc64_redis,
+    // , header::crc::crc64_we,
+    // , header::crc::crc64_xz
+    // , header::crc::crc82_darc
+) {
+    // Ensure process_zero_bytes runs in logarithmic time.
+    CHECK_COMPILE_AND_RUN_TIME(((void)header::crc::process_zero_bytes(TestType {}, std::numeric_limits<std::size_t>::max()), true));
+
+    []<std::size_t... N>(std::index_sequence<N...>){
+        (CHECK_COMPILE_AND_RUN_TIME(
+            header::crc::process(header::crc::algorithms::slice_by<1>, TestType {}, std::array<std::uint8_t, N> {}) ==
+            header::crc::process_zero_bytes(TestType {}, N)
+        ), ...);
+    }(std::make_index_sequence<8>{});
+
+    static constexpr std::string_view long_message {
+        "E6899E53E69E7C413A1CD5A21CC4324652DB349834B17A7B1AD1575E2F4FA3A03DC3FD09D9E1439708F60DBF861098AE7EC6D41D614FD3BCCE032221C8433334"
+        "D222E03BC576084700C37571D8CB13C4A459799663EBCE7AAAB32338727A111E97B5F049BADDE8667CEFB1C9A56076E4243E238E4B596F32A92A0E79AF1DD544"
+        "71A9E2D1D1A706C1EEDAF4C7E7D68A4EDFC753C95DCA622B92BC9DF09F02B9F1A262A17B8701855EF11DED2C4D3565E434D051F92A5600A76A0D73916FA15E17"
+        "6123CF68CCA08BAADE99D83D228339DE7ED58F6080C88D3448E8B97920C12FA7F22A44B273ADC94B5D4097B673BE235F1436251CF9BE2B64EF053D538E62A59D"
+        "8CF078DB2D93AC2532E0FB69F984BCC41FD9E2DC1F0A8E8673FED6876994585075901DA12FCAC6549B09B8647535889DB03BD48757E8B2927FF833A2DE3DCEED"
+        "314D8D6D8655709AA9F99BEA2317D935016247D19E6DB423D19D35AE94D8D4D5FE890D9618417151EF8567EEF05CB1314B2E32F0165F165464576370B2D7529D"
+        "A084EB4A796E9AF1FEB7FD32A74599681F66D4F22BF09F8157A169FAA188ADF197445B75CCEA02D270AB662B2968058404ECA3A78A14963D77FA479FB6CB5364"
+        "1F7761DA5C63ECE2CD52CC960D045D1114C151F417FA46613E3425704C09A3CDA1020F3AD6036CF14D9A0A11BEDE09C7EAF5F6CE13FF04A34FA187EA7A67A14E"
+        "3F4746A80C4FC62AF5CBB964F3E25A778F6E11578B8A8033948944F5D459AF55A36E0270A2210557BC9DE52B60D23BF3E3082E791EA5A9D1BD52BCC78CEDE62C"
+        "2D8BE2B12D584E30A948585B054650308462C558249535166146EE2397B853B10D70A7FD23AF3C8A7AE5DA8B27E7C7604F6DBD9CA14C4D869CEF9AC5E35EF337"
+        "17777B8D28502A783FE829D0D46D326ADA17421D9DC2AFCB7BEDF3BAE6266AC9512A166A388AC24029E8416D0C1609965FEE44C622D47CF8CDBD3A2B60118B28"
+        "A68A494FCBD2C4114C959BBDE567B8A7DF3AE84047E4646D805DA2E60763ABDC8BDA70B7877A0C3EB5C3D95EEACF32BE8E14FAD70C2E3F3CD1E497ABB1FDF169"
+        "AED404530C0EAD359F420FE479AE5D1B4031714AE2797E42BEE0B3AD54255C785A480ADED4A05A97E758D870E9307ECF090E2E2A78D62AE057809A8BCAF7C912"
+        "923FB03F83C1BC9DF736B3DB863399DB6C975DFDBB0897F0ABAFF1ADCDDBAFDF5B796A64527B2171A2FD044CB7581BECB99D2DADF0BC656FE80698FCD283D41E"
+        "56FC35A556BE5DCDFC227C4066CB3EEF8993ACEB255AD3AE9D3C8E5765EA717E7F158FC9FB380675FEDF60F05695600F83BDD31D11B47D22D92B1D11751C58FC"
+        "647655FB6163006C9439FA3E7C550A92D7DBC0942F12094A1D4A34787B189741DE8712379084B52FF6261F4A386CC547D57941382938BFC5BF7B9031DC140ECC"
+        "1B28F0B0DAC3678DAC60C149C8B68AA44F42F2635FC42279594453A965CB36B6FB1B1DF9BEBC4616629FC644150A9B30DB255ED3FE5DD5A13B0F869FECBDD49A"
+        "C2D23A06EEBB921E709BDCAE63EE3472F6722EB8730837296EC839E4EE8B0E8047E26472BE2C21E1636F20153A97A489B7A909D4480003E6A6CE3A997798C935"
+        "EC61A3F304247A7CF606B0DC04E59620BA4987D99F711BAC9329FAAF78171C3D28B1FB46E1A6CFADAE320AB45BEE4B0FA2A141F6D7F3A369C73F411551A41EA6"
+        "0DD3E786FE184EDACFEE216435867EF40C73944E34BD776D7FFF12390F78B6993278195D623C1EE8DF2092DDBD57C3E205C585D4E47715D6AF711307F71EF637"
+    };
+
+    CHECK_COMPILE_AND_RUN_TIME(
+        header::crc::process(header::crc::algorithms::parallel<header::crc::algorithms::slice_by<1>>, TestType {}, long_message) ==
+        header::crc::process(header::crc::algorithms::slice_by<1>, TestType {}, long_message)
+    );
 }

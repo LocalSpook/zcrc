@@ -39,10 +39,13 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <execution>
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <ranges>
+#include <thread>
 #include <type_traits>
 #include <utility>
 
@@ -82,6 +85,9 @@ struct algorithm_base {};
 
 } // namespace detail
 
+CRC_EXPORT template <typename T>
+concept algorithm = std::derived_from<T, detail::algorithm_base>;
+
 namespace algorithms {
 
 CRC_EXPORT template <std::size_t N>
@@ -90,13 +96,23 @@ struct slice_by_t : detail::algorithm_base {
     explicit slice_by_t() = default;
 };
 
+CRC_EXPORT template <algorithm A>
+struct parallel_t : detail::algorithm_base {
+    explicit parallel_t() = default;
+};
+
+CRC_EXPORT template <typename A>
+struct parallel_t<parallel_t<A>> : detail::algorithm_base {
+    static_assert(false, "crc::algorithms::parallel cannot be nested");
+};
+
 CRC_EXPORT template <std::size_t N>
 inline constexpr slice_by_t<N> slice_by {};
 
-} // namespace algorithms
+CRC_EXPORT template <algorithm auto A>
+inline constexpr parallel_t<decltype(A)> parallel {};
 
-CRC_EXPORT template <typename T>
-concept algorithm = std::derived_from<T, detail::algorithm_base>;
+} // namespace algorithms
 
 namespace detail {
 
@@ -184,18 +200,11 @@ template <typename T>
     }
 }
 
-template <typename T, std::endian E, std::input_iterator I>
-[[nodiscard]] constexpr T read(I it) {
-    std::array<char, sizeof(T)> bytes; // NOLINT(cppcoreguidelines-pro-type-member-init)
-    for (std::size_t i {0}; i < sizeof(T); ++i, ++it) {
-        bytes[E == std::endian::native ? i : sizeof(T) - i] = static_cast<char>(*it);
-    }
-    return std::bit_cast<T>(bytes);
-}
-
 [[nodiscard]] constexpr auto compute_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
 [[nodiscard]] constexpr bool is_valid_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
 
+struct combine_fn;
+struct process_zero_bytes_fn;
 struct process_fn;
 struct finalize_fn;
 struct is_valid_fn;
@@ -211,6 +220,12 @@ using least_uint =
 // clang-format on
 
 } // namespace detail
+
+CRC_EXPORT struct zero_init_t {
+    explicit zero_init_t() = default;
+};
+
+CRC_EXPORT inline constexpr zero_init_t zero_init {};
 
 CRC_EXPORT template <
     std::size_t Width,
@@ -237,6 +252,8 @@ private:
 
     [[nodiscard]] constexpr crc(const crc_type crc) noexcept : m_crc {crc} {}
 
+    friend struct detail::combine_fn;
+    friend struct detail::process_zero_bytes_fn;
     friend struct detail::process_fn;
     friend struct detail::finalize_fn;
     friend struct detail::is_valid_fn;
@@ -308,6 +325,7 @@ public:
     static constexpr crc_type xorout {XOROut};
 
     [[nodiscard]] constexpr crc() noexcept = default;
+    [[nodiscard]] constexpr crc(zero_init_t) noexcept : m_crc {0} {}
     [[nodiscard]] friend constexpr bool operator==(crc, crc) noexcept = default;
 
     static constexpr compute_member_fn compute {};
@@ -315,6 +333,77 @@ public:
 };
 
 namespace detail {
+
+struct combine_fn {
+    template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut>
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(crc<Width, Poly, Init, RefIn, RefOut, XOROut> lhs,
+               crc<Width, Poly, Init, RefIn, RefOut, XOROut> rhs) CRC_CONST_CALL_OPERATOR noexcept {
+        return lhs.m_crc ^ rhs.m_crc;
+    }
+};
+
+template <std::integral T>
+[[nodiscard]] constexpr T carryless_multiply(const T lhs, const T rhs) noexcept {
+    T ret {};
+    for (std::size_t i {0}; i < std::numeric_limits<T>::digits; ++i) {
+        ret ^= detail::bit_is_set(rhs, i) ? (lhs << i) : 0;
+    }
+    return ret;
+}
+
+template <std::size_t Width, auto Poly, bool RefIn>
+inline constexpr auto folding_constants {[]{
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
+    std::array<detail::least_uint<Width>, std::numeric_limits<std::size_t>::digits> folding_constants_;
+    for (detail::least_uint<std::max<std::size_t>(Width * 2, 9)> r {1 << 4}; auto& entry : folding_constants_) {
+        r = detail::carryless_multiply(r, r);
+        for (std::size_t i {std::max<std::size_t>(Width * 2 - 1, 8)}; i >= Width; --i) {
+            r ^= detail::bit_is_set(r, i) ? (static_cast<decltype(r)>(Poly) << (i - Width)) : 0;
+        }
+        r &= detail::bottom_n_mask<decltype(r)>(Width);
+        entry = RefIn ? detail::reflect(r, Width) : r;
+    }
+    return folding_constants_;
+}()};
+
+template <std::size_t Width, auto Poly, bool RefIn>
+[[nodiscard]] constexpr detail::least_uint<Width>
+process_zero_bytes_fn_impl(detail::least_uint<Width> state, std::size_t n) noexcept {
+    static_assert(Width <= 32, "process_zero_bytes is not yet implemented for CRCs with width greater than 32");
+
+    if constexpr (Width < 8 && !RefIn) {
+        return detail::process_zero_bytes_fn_impl<8, Poly << (8 - Width), RefIn>(state, n);
+    }
+
+    while (n != 0) {
+        const auto b {static_cast<std::size_t>(std::countr_zero(n))};
+        auto r {detail::carryless_multiply<detail::least_uint<Width * 2>>(state, folding_constants<Width, Poly, RefIn>[b])};
+        if constexpr (RefIn) {
+            CRC_STATIC23 constexpr auto adjusted_poly {static_cast<decltype(r)>(detail::reflect(Poly, Width)) << 1};
+            for (std::size_t i {0}; i < (Width - 1); ++i) {
+                r ^= detail::bit_is_set(r, i) ? (adjusted_poly << i) : 0;
+            }
+            r >>= Width - 1;
+        } else {
+            CRC_STATIC23 constexpr auto adjusted_poly {static_cast<decltype(r)>(Poly) | (1ULL << Width)};
+            for (std::size_t i {Width * 2 - 2}; i >= Width; --i) {
+                r ^= detail::bit_is_set(r, i) ? (adjusted_poly << (i - Width)) : 0;
+            }
+        }
+        state = r;
+        n ^= (1ULL << b);
+    }
+    return state;
+}
+
+struct process_zero_bytes_fn {
+    template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut>
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> state, const std::size_t n) CRC_CONST_CALL_OPERATOR noexcept {
+        return detail::process_zero_bytes_fn_impl<Width, Poly, RefIn>(state.m_crc, n);
+    }
+};
 
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t Slices>
 inline constexpr auto tables {[] {
@@ -372,6 +461,39 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
     }(std::make_index_sequence<std::bit_width(N - 1)>{});
 
     return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
+}
+
+template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
+          algorithm A, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+[[nodiscard]] constexpr detail::least_uint<Width>
+process_fn_impl(algorithms::parallel_t<A>, const least_uint<Width> state, const I it, const S end) noexcept {
+    if (std::is_constant_evaluated()) {
+        return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, it, end);
+    }
+
+    const auto len {static_cast<std::size_t>(end - it)};
+    const std::size_t hardware_threads {std::jthread::hardware_concurrency()};
+    const std::size_t chunk_length {len / hardware_threads};
+    const auto indices {std::views::iota(static_cast<std::size_t>(0), hardware_threads)};
+    return std::transform_reduce(
+        std::execution::par,
+        std::ranges::begin(indices),
+        std::ranges::end(indices),
+        detail::least_uint<Width>{},
+        [] (const auto lhs, const auto rhs) noexcept { return lhs ^ rhs; },
+        [&] (const std::size_t i) noexcept {
+            const auto chunk_begin {(i == 0) ? it : (it + (len % chunk_length) + (i * chunk_length))};
+            const auto chunk_end {it + (len % chunk_length) + ((i + 1) * chunk_length)};
+            return detail::process_zero_bytes_fn_impl<Width, Poly, RefIn>(
+                detail::process_fn_impl<Width, Poly, RefIn>(
+                    A {},
+                    (i == 0) ? state : 0,
+                    chunk_begin,
+                    chunk_end
+                ),
+                end - chunk_end
+            );
+        });
 }
 
 struct process_fn {
@@ -470,6 +592,8 @@ struct is_valid_fn {
 
 } // namespace detail
 
+CRC_EXPORT inline constexpr detail::combine_fn combine {};
+CRC_EXPORT inline constexpr detail::process_zero_bytes_fn process_zero_bytes {};
 CRC_EXPORT inline constexpr detail::process_fn process {};
 CRC_EXPORT inline constexpr detail::finalize_fn finalize {};
 CRC_EXPORT inline constexpr detail::is_valid_fn is_valid {};
@@ -488,8 +612,6 @@ namespace detail {
 
 // clang-format off
 
-/// Parity bit.
-CRC_EXPORT using crc1                    = crc<1,      0x1,      0x0, false, false,      0x0>;
 CRC_EXPORT using crc3_gsm                = crc<3,      0x3,      0x0, false, false,      0x7>; // academic
 CRC_EXPORT using crc3_rohc               = crc<3,      0x3,      0x7,  true,  true,      0x0>; // academic
 CRC_EXPORT using crc4_g_704              = crc<4,      0x3,      0x0,  true,  true,      0x0>; // academic

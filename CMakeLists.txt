@@ -8,10 +8,14 @@ project(crc
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+
+include(FetchContent)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
 option(CRC_MODULE "build the library as a module" OFF)
+option(CRC_TEST "build the tests" OFF)
+option(CRC_BENCHMARK "build the benchmarks" OFF)
 
 add_library(crc INTERFACE)
 add_library(crc::crc ALIAS crc)
@@ -64,16 +68,16 @@ install(
 	NAMESPACE crc::
 )
 
-if(BUILD_TESTING)
-    include(FetchContent)
-    FetchContent_Declare(
-        catch2
+if(CRC_TEST OR CRC_BECNHMARK)
+    FetchContent_Declare(catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2
         GIT_TAG v3.7.1
         SYSTEM
     )
     FetchContent_MakeAvailable(catch2)
+endif()
 
+if(CRC_TEST)
     add_executable(tests)
     target_sources(tests PRIVATE test/tests.cpp)
     target_link_libraries(tests PRIVATE Catch2::Catch2WithMain crc::crc)
@@ -81,4 +85,14 @@ if(BUILD_TESTING)
         target_compile_definitions(tests PRIVATE CRC_TEST_MODULE)
         target_link_libraries(tests PRIVATE crc::crc-module)
     endif()
+endif()
+
+if(CRC_BENCHMARK)
+    if(NOT CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
+        message(WARNING "Building without optimization; benchmark results will be bogus! (CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}, but should be Release, RelWithDebInfo, or MinSizeRel)")
+    endif()
+
+    add_executable(benchmarks)
+    target_sources(benchmarks PRIVATE benchmark/benchmarks.cpp)
+    target_link_libraries(benchmarks PRIVATE Catch2::Catch2WithMain crc::crc)
 endif()
