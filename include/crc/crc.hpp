@@ -88,8 +88,6 @@ struct algorithm_base {};
 CRC_EXPORT template <typename T>
 concept algorithm = std::derived_from<T, detail::algorithm_base>;
 
-namespace algorithms {
-
 CRC_EXPORT template <std::size_t N>
 struct slice_by_t : detail::algorithm_base {
     static_assert(N != 0);
@@ -103,7 +101,7 @@ struct parallel_t : detail::algorithm_base {
 
 CRC_EXPORT template <typename A>
 struct parallel_t<parallel_t<A>> : detail::algorithm_base {
-    static_assert(false, "crc::algorithms::parallel cannot be nested");
+    static_assert(false, "crc::parallel cannot be nested");
 };
 
 CRC_EXPORT template <std::size_t N>
@@ -112,11 +110,9 @@ inline constexpr slice_by_t<N> slice_by {};
 CRC_EXPORT template <algorithm auto A>
 inline constexpr parallel_t<decltype(A)> parallel {};
 
-} // namespace algorithms
+CRC_EXPORT inline constexpr slice_by_t<8> default_algorithm {};
 
 namespace detail {
-
-inline constexpr auto& default_algorithm {algorithms::slice_by<8>};
 
 template <typename T>
 concept byte_like = std::is_trivially_copyable_v<T> && sizeof(T) == 1 && !std::same_as<std::remove_cv_t<T>, bool>;
@@ -275,13 +271,13 @@ private:
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(detail::compute_member_fn_impl(detail::default_algorithm, crc {}, std::move(begin), std::move(end)))
+            CRC_RETURNS(detail::compute_member_fn_impl(default_algorithm, crc {}, std::move(begin), std::move(end)))
 
         template <std::ranges::contiguous_range R>
         requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(detail::compute_member_fn_impl(detail::default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
+            CRC_RETURNS(detail::compute_member_fn_impl(default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
     };
 
     struct is_valid_member_fn {
@@ -301,13 +297,13 @@ private:
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(detail::is_valid_member_fn_impl(detail::default_algorithm, crc {}, std::move(begin), std::move(end)))
+            CRC_RETURNS(detail::is_valid_member_fn_impl(default_algorithm, crc {}, std::move(begin), std::move(end)))
 
         template <std::ranges::contiguous_range R>
         requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(detail::is_valid_member_fn_impl(detail::default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
+            CRC_RETURNS(detail::is_valid_member_fn_impl(default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
     };
 
 public:
@@ -434,7 +430,7 @@ inline constexpr auto tables {[] {
 
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
           std::size_t N, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
-[[nodiscard]] constexpr least_uint<Width> process_fn_impl(algorithms::slice_by_t<N>, least_uint<Width> crc, I it, S end) noexcept {
+[[nodiscard]] constexpr least_uint<Width> process_fn_impl(slice_by_t<N>, least_uint<Width> crc, I it, S end) noexcept {
     const auto fold {[&]<std::size_t... B>(std::index_sequence<B...>) {
         CRC_STATIC23 constexpr auto t {detail::tables<Width, Poly, RefIn, N>.end() - sizeof...(B)};
         if constexpr (RefIn) {
@@ -466,7 +462,7 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
           algorithm A, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
 [[nodiscard]] constexpr detail::least_uint<Width>
-process_fn_impl(algorithms::parallel_t<A>, const least_uint<Width> state, const I it, const S end) noexcept {
+process_fn_impl(parallel_t<A>, const least_uint<Width> state, const I it, const S end) noexcept {
     if (std::is_constant_evaluated()) {
         return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, it, end);
     }
@@ -538,7 +534,7 @@ struct process_fn {
     requires detail::byte_like<std::iter_value_t<I>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I begin, S end) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(process_fn::operator()(detail::default_algorithm, crc, std::move(begin), std::move(end)))
+        CRC_RETURNS(process_fn::operator()(default_algorithm, crc, std::move(begin), std::move(end)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
               std::ranges::contiguous_range R>

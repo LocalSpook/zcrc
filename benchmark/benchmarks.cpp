@@ -63,16 +63,16 @@ TEST_CASE("512 MiB parallel CRC32C slice-by-8") {
     std::cout << std::format("Hardware threads: {}\n", std::jthread::hardware_concurrency());
 
     BENCHMARK("sequential") {
-        return crc::crc32c::compute(crc::algorithms::slice_by<8>, random_data);
+        return crc::crc32c::compute(crc::slice_by<8>, random_data);
     };
 
-    BENCHMARK("crc::algorithms::parallel") {
-        return crc::crc32c::compute(crc::algorithms::parallel<crc::algorithms::slice_by<8>>, random_data);
+    BENCHMARK("crc::parallel") {
+        return crc::crc32c::compute(crc::parallel<crc::slice_by<8>>, random_data);
     };
 
     for (const auto i : std::views::iota(2U, std::jthread::hardware_concurrency() + 1)) {
-        BENCHMARK(std::format("{} threads", i).c_str()) {
-            return compute<crc::crc32c>(crc::algorithms::slice_by<8>, i, random_data);
+        BENCHMARK(std::format("{} threads", i)) {
+            return compute<crc::crc32c>(crc::slice_by<8>, i, random_data);
         };
     }
 }

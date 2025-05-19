@@ -48,26 +48,26 @@ All the functions above also have overloads taking iterator pairs instead of ran
 ### Choosing an algorithm
 
 There are many algorithms for calculating CRCs.
-The library will pick a good default (currently, that's `crc::algorithms::slice_by<8>`),
+The library will pick a good default (`crc::default_algorithm`; currently, that's `crc::slice_by<8>`),
 but it isn't omniscient,
 so you have the ability to specify which algorithm you want.
 The following algorithms are available:
 
-- **`crc::algorithms::slice_by<N>`:** process `N` bytes at a time.
+- `crc::slice_by<N>`: process `N` bytes at a time.
   Requires an `N * 256 * sizeof(crc::<...>::crc_type)` byte lookup table.
   For example, CRC32C implemented with slice-by-4 requires a 4 KiB lookup table.
 
 To specify an algorithm, pass it as the first parameter to `crc::<...>::compute`, `crc::<...>::is_valid`, or `crc::process`:
 
 ```cpp
-crc::crc32_mpeg2::compute(crc::algorithms::slice_by<8>, ...);
+crc::crc32_mpeg2::compute(crc::slice_by<8>, ...);
 
-if (!crc::crc32_mpeg2::is_valid(crc::algorithms::slice_by<8>, ...)) {
+if (!crc::crc32_mpeg2::is_valid(crc::slice_by<8>, ...)) {
     ...
 }
 
 crc::crc32_mpeg2 crc {};
-crc = crc::process(crc::algorithms::slice_by<8>, crc, ...);
+crc = crc::process(crc::slice_by<8>, crc, ...);
 ```
 
 If you want to write your own functions that take CRC algorithms as arguments,
@@ -83,10 +83,10 @@ void my_function(crc::algorithm auto algo, ...) {
 
 Computing CRCs is an embarrassingly parallel problem.
 To enable parallelization,
-simply wrap an ordinary algorithm with the `crc::algorithms::parallel` adaptor and pass it to `crc::<...>::compute`, `crc::<...>::is_valid`, or `crc::process` as you normally would:
+simply wrap an ordinary algorithm with the `crc::parallel` adaptor and pass it to `crc::<...>::compute`, `crc::<...>::is_valid`, or `crc::process` as you normally would:
 
 ```cpp
-crc::crc32c::compute(crc::algorithms::parallel<crc::algorithms::slice_by<8>>, ...);
+crc::crc32c::compute(crc::parallel<crc::slice_by<8>>, ...);
 ```
 
 (The function is still constexpr! It'll just dispatch to a sequential algorithm if evaluated at compile time.)
@@ -94,7 +94,7 @@ crc::crc32c::compute(crc::algorithms::parallel<crc::algorithms::slice_by<8>>, ..
 Note that parallelizing CRCs of width greater than 32 is currently unsupported.
 
 The parallel algorithm divides the message into as many chunks as the system has hardware threads.
-Each thread processes its chunk using the wrapped algorithm (in this case, `crc::algorithms::slice_by<8>`).
+Each thread processes its chunk using the wrapped algorithm (in this case, `crc::slice_by<8>`).
 Here's what the scaling can look like:
 
 ![image](img/parallel_scaling.svg)
