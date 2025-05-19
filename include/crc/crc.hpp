@@ -46,6 +46,7 @@
 #include <numeric>
 #include <ranges>
 #include <thread>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -211,8 +212,9 @@ using least_uint =
     std::conditional_t<Bits <=  8, std::uint8_t,
     std::conditional_t<Bits <= 16, std::uint16_t,
     std::conditional_t<Bits <= 32, std::uint32_t,
-    std::uint64_t
->>>;
+    std::conditional_t<Bits <= 64, std::uint64_t,
+    void
+>>>>;
 // clang-format on
 
 } // namespace detail
@@ -402,13 +404,10 @@ struct process_zero_bytes_fn {
 };
 
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t Slices>
-inline constexpr auto tables {[] {
-    // TODO: get rid of the "Slices > 1" condition and properly implement
-    // the size reduction optimization for multiple slices.
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-    std::array<std::array<std::conditional_t<(RefIn || Slices > 1),
-        least_uint<Width>, detail::least_uint<7 + std::bit_width(Poly)>>, 256>, Slices> tables_;
-    for (least_uint<Width> r {RefIn ? 1 : (1ULL << (Width - 1))}; auto& table : tables_ | std::views::reverse) {
+inline constexpr auto tables {[]<std::size_t... Slice>(std::index_sequence<Slice...>){
+    least_uint<Width> r {RefIn ? 1 : (1ULL << (Width - 1))};
+    return std::tuple {((void)Slice, [&] {
+        std::array<detail::least_uint<RefIn ? Width : (std::min)(Width, 7 + std::bit_width(Poly) + (8 * Slice))>, 256> table;
         // Step 1: compute the power of two entries.
         table[0] = 0;
         for (std::size_t i {0}; i < 8; ++i) {
@@ -424,21 +423,21 @@ inline constexpr auto tables {[] {
                 table[i ^ j] = table[i] ^ table[j];
             }
         }
-    }
-    return tables_;
-}()};
+        return table;
+    }())...};
+}(std::make_index_sequence<Slices>{})};
 
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
           std::size_t N, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
 [[nodiscard]] constexpr least_uint<Width> process_fn_impl(slice_by_t<N>, least_uint<Width> crc, I it, S end) noexcept {
     const auto fold {[&]<std::size_t... B>(std::index_sequence<B...>) {
-        CRC_STATIC23 constexpr auto t {detail::tables<Width, Poly, RefIn, N>.end() - sizeof...(B)};
+        CRC_STATIC23 constexpr auto& t {detail::tables<Width, Poly, RefIn, N>};
         if constexpr (RefIn) {
-            crc = (t[B][(detail::rshift(crc, 8 * B) & 0xFF) ^ static_cast<std::uint8_t>(it[B])] ^ ...
-                ^ detail::rshift(crc, sizeof...(B) * 8));
+            crc = (std::get<sizeof...(B) - B - 1>(t)[(detail::rshift(crc, 8 * B) & 0xFF) ^ static_cast<std::uint8_t>(it[B])]
+                ^ ... ^ detail::rshift(crc, sizeof...(B) * 8));
         } else {
-            crc = (t[B][(detail::rshift(crc, Width - 8 * (B + 1)) & 0xFF) ^ static_cast<std::uint8_t>(it[B])] ^ ...
-                ^ detail::lshift(crc, sizeof...(B) * 8));
+            crc = (std::get<sizeof...(B) - B - 1>(t)[(detail::rshift(crc, Width - 8 * (B + 1)) & 0xFF) ^ static_cast<std::uint8_t>(it[B])]
+                ^ ... ^ detail::lshift(crc, sizeof...(B) * 8));
         }
     }};
 
