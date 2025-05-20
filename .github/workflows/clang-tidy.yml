@@ -25,7 +25,7 @@ jobs:
 
     - name: Configure build
       run: |
-        cmake -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-19 -DCRC_TEST=ON -DCRC_MODULE=ON
+        cmake -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-19 -DCRC_TEST=ON -DCRC_MODULE=ON -DCRC_BENCHMARK=ON
 
     - name: Build
       run: |
@@ -33,4 +33,4 @@ jobs:
 
     - name: Run clang-tidy
       run: |
-        clang-tidy-19 --warnings-as-errors="*" -p build test/*.cpp src/*.cppm include/crc/*.hpp
+        clang-tidy-19 --warnings-as-errors="*" -p build test/*.cpp benchmark/*.cpp src/*.cppm include/crc/*.hpp

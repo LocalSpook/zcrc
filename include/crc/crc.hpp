@@ -176,7 +176,7 @@ template <typename T>
 // our algorithms.
 template <typename T>
 [[nodiscard]] constexpr T lshift(const T n, const std::int64_t b) noexcept {
-    if (static_cast<std::size_t>(detail::abs(b)) >= (sizeof(T) * 8)) {
+    if (static_cast<std::size_t>(detail::abs(b)) >= std::numeric_limits<T>::digits) {
         return 0;
     } else if (b < 0) {
         return n >> -b;
@@ -188,7 +188,7 @@ template <typename T>
 // Ditto.
 template <typename T>
 [[nodiscard]] constexpr T rshift(const T n, const std::int64_t b) noexcept {
-    if (static_cast<std::size_t>(detail::abs(b)) >= (sizeof(T) * 8)) {
+    if (static_cast<std::size_t>(detail::abs(b)) >= std::numeric_limits<T>::digits) {
         return 0;
     } else if (b < 0) {
         return n << -b;

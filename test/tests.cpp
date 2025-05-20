@@ -8,6 +8,7 @@
 #include <limits>
 #include <ranges>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 

@@ -1,10 +1,13 @@
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <iostream>
 #include <iterator>
+#include <mutex>
 #include <random>
 #include <ranges>
+#include <thread>
 #include <vector>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
@@ -36,7 +39,7 @@ template <typename CRC>
         std::vector<std::jthread> pool;
         pool.reserve(threads);
         for (const auto i : std::views::iota(static_cast<std::size_t>(0), threads)) {
-            pool.emplace_back([&, i] noexcept {
+            pool.emplace_back([&, i] () noexcept {
             const auto chunk_begin {(i == 0) ? it : (it + (len % chunk_length) + (i * chunk_length))};
             const auto chunk_end {it + (len % chunk_length) + ((i + 1) * chunk_length)};
                 auto temp {crc::process_zero_bytes(
@@ -48,7 +51,7 @@ template <typename CRC>
                     ),
                     end - chunk_end
                 )};
-                std::scoped_lock lock {ret_mutex};
+                const std::scoped_lock lock {ret_mutex};
                 ret = crc::combine(ret, temp);
             });
         }
