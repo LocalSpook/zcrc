@@ -188,13 +188,7 @@ template <typename T>
 // Ditto.
 template <typename T>
 [[nodiscard]] constexpr T rshift(const T n, const std::int64_t b) noexcept {
-    if (static_cast<std::size_t>(detail::abs(b)) >= std::numeric_limits<T>::digits) {
-        return 0;
-    } else if (b < 0) {
-        return n << -b;
-    } else {
-        return n >> b;
-    }
+    return detail::lshift(n, -b);
 }
 
 [[nodiscard]] constexpr auto compute_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
