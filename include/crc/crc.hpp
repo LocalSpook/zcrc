@@ -50,7 +50,7 @@
 #include <type_traits>
 #include <utility>
 
-// This is defined when building as a module and when building tests.
+// This is defined when building as a module.
 #ifndef CRC_JUST_THE_INCLUDES
 
 #ifdef CRC_EXPORT_SYMBOLS

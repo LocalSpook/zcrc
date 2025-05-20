@@ -195,8 +195,8 @@ If you also configured with `-DCRC_MODULE=ON`,
 the module tests will be added to the binary.
 We have a 2 by 2 testing matrix:
 compile versus run time, and header versus module.
-To test just the header, run `./build/bin/tests --section header`.
-To test just the module, run `./build/bin/tests --section module`.
+To test just the header, run `./build/bin/tests [header]`.
+To test just the module, run `./build/bin/tests [module]`.
 
 To build the benchmarks, add `-DCRC_BENCHMARK=ON`.
 The benchmarking framework is also Catch2,

@@ -15,47 +15,25 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 
-#define CRC_JUST_THE_INCLUDES
-#include <crc/crc.hpp>
-#undef CRC_JUST_THE_INCLUDES
-#undef CRC_HPP_INCLUDED
-
-// We want to test both the header and the module.
-// If we naively include/import both, we'll get duplicate symbols
-// in the crc:: namespace. So, we wrap the header symbols in an
-// additional namespace.
-namespace header { // NOLINT(modernize-concat-nested-namespaces) (lol)
-
-#include <crc/crc.hpp>
-
-} // namespace header
-
-#define CHECK_COMPILE_AND_RUN_TIME(...) [&] { \
-        static_assert(__VA_ARGS__);       \
-        CHECK(__VA_ARGS__); \
-    }()
-
-#define CHECK_HEADER(...) SECTION("header") {   \
-        namespace crc = header::crc;            \
-        CHECK_COMPILE_AND_RUN_TIME(__VA_ARGS__); \
-    }
-
-#define CHECK_MODULE(...) SECTION("module") {   \
-        CHECK_COMPILE_AND_RUN_TIME(__VA_ARGS__); \
-    }
-
 #ifdef CRC_TEST_MODULE
 import crc;
-#define CHECK_MATRIX(...) [&] { CHECK_HEADER(__VA_ARGS__); CHECK_MODULE(__VA_ARGS__); }()
+#define HEADER_OR_MODULE_TAG "[module]"
 #else
-#define CHECK_MATRIX(...) [&] { CHECK_HEADER(__VA_ARGS__); }()
+#include <crc/crc.hpp>
+#define HEADER_OR_MODULE_TAG "[header]"
 #endif
+
+#define CHECK_MATRIX(...) [&] {     \
+        static_assert(__VA_ARGS__); \
+        CHECK(__VA_ARGS__);         \
+    }()
 
 using namespace std::literals;
 
-TEST_CASE("compile-time checks") {
+TEST_CASE("compile-time checks", HEADER_OR_MODULE_TAG) {
     CHECK_MATRIX(crc::algorithm<crc::slice_by_t<0xC0FFEE>>);
     CHECK_MATRIX(crc::algorithm<crc::parallel_t<crc::slice_by_t<0xC0FFEE>>>);
+    CHECK_MATRIX(crc::algorithm<decltype(crc::default_algorithm)>);
     CHECK_MATRIX(!crc::algorithm<int>);
     CHECK_MATRIX(std::regular_invocable<decltype(crc::crc32c::compute), std::vector<char>&>);
     CHECK_MATRIX(std::regular_invocable<decltype(crc::crc32c::compute), std::vector<unsigned char>&>);
@@ -69,7 +47,7 @@ TEST_CASE("compile-time checks") {
 template <std::size_t N>
 using c = std::integral_constant<std::size_t, N>;
 
-TEMPLATE_TEST_CASE("basic functionality checks", "", c<1>, c<2>, c<3>, c<4>, c<5>) {
+TEMPLATE_TEST_CASE("basic functionality checks", HEADER_OR_MODULE_TAG, c<1>, c<2>, c<3>, c<4>, c<5>) {
     static constexpr std::size_t N {TestType::value};
     static constexpr std::string_view test_data {"123456789"};
 
@@ -212,7 +190,7 @@ TEMPLATE_TEST_CASE("basic functionality checks", "", c<1>, c<2>, c<3>, c<4>, c<5
 #endif
 }
 
-TEST_CASE("equality comparison") {
+TEST_CASE("equality comparison", HEADER_OR_MODULE_TAG) {
     CHECK_MATRIX(crc::crc10_atm {} == crc::crc10_atm {});
     CHECK_MATRIX(!(crc::crc10_atm {} != crc::crc10_atm {}));
 
@@ -239,55 +217,55 @@ TEST_CASE("equality comparison") {
     }() == crc::crc64_xz::compute("Some data processed in parts"sv));
 }
 
-TEST_CASE("is_valid") {
+TEST_CASE("is_valid", HEADER_OR_MODULE_TAG) {
     CHECK_MATRIX(crc::crc32c::is_valid("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x4E\x79\xDD\x46"sv));
     CHECK_MATRIX(crc::crc16_arc::is_valid("\x33\x22\x55\xAA\xBB\xCC\xDD\xEE\xFF\x98\xAE"sv));
 }
 
-TEMPLATE_TEST_CASE("process_zero_bytes and parallel", "",
-    header::crc::crc3_gsm, header::crc::crc3_rohc, header::crc::crc4_g_704, header::crc::crc4_interlaken,
-    header::crc::crc5_epc_c1g2, header::crc::crc5_g_704, header::crc::crc5_usb, header::crc::crc6_cdma2000_a,
-    header::crc::crc6_cdma2000_b, header::crc::crc6_darc, header::crc::crc6_g_704, header::crc::crc6_gsm,
-    header::crc::crc7_mmc, header::crc::crc7_rohc, header::crc::crc7_umts, header::crc::crc8_autosar,
-    header::crc::crc8_bluetooth, header::crc::crc8_cdma2000, header::crc::crc8_darc, header::crc::crc8_dvb_s2,
-    header::crc::crc8_gsm_a, header::crc::crc8_gsm_b, header::crc::crc8_hitag, header::crc::crc8_i_432_1,
-    header::crc::crc8_i_code, header::crc::crc8_lte, header::crc::crc8_maxim_dow, header::crc::crc8_mifare_mad,
-    header::crc::crc8_nrsc_5, header::crc::crc8_opensafety, header::crc::crc8_rohc, header::crc::crc8_sae_j1850,
-    header::crc::crc8_smbus, header::crc::crc8_tech_3250, header::crc::crc8_wcdma, header::crc::crc10_atm,
-    header::crc::crc10_cdma2000, header::crc::crc10_gsm, header::crc::crc11_flexray, header::crc::crc11_umts,
-    header::crc::crc12_cdma2000, header::crc::crc12_dect, header::crc::crc12_gsm, header::crc::crc12_umts,
-    header::crc::crc13_bbc, header::crc::crc14_darc, header::crc::crc14_gsm, header::crc::crc15_can,
-    header::crc::crc15_mpt1327, header::crc::crc16_arc, header::crc::crc16_cdma2000, header::crc::crc16_cms,
-    header::crc::crc16_dds_110, header::crc::crc16_dect_r, header::crc::crc16_dect_x, header::crc::crc16_dnp,
-    header::crc::crc16_en_13757, header::crc::crc16_genibus, header::crc::crc16_gsm, header::crc::crc16_ibm_3740,
-    header::crc::crc16_ibm_sdlc, header::crc::crc16_iso_iec_14443_3_a, header::crc::crc16_kermit, header::crc::crc16_lj1200,
-    header::crc::crc16_m17, header::crc::crc16_maxim_dow, header::crc::crc16_mcrf4xx, header::crc::crc16_modbus,
-    header::crc::crc16_nrsc_5, header::crc::crc16_opensafety_a, header::crc::crc16_opensafety_b, header::crc::crc16_profibus,
-    header::crc::crc16_riello, header::crc::crc16_spi_fujitsu, header::crc::crc16_t10_dif, header::crc::crc16_teledisk,
-    header::crc::crc16_tms37157, header::crc::crc16_umts, header::crc::crc16_usb, header::crc::crc16_xmodem,
-    header::crc::crc17_can_fd, header::crc::crc21_can_fd, header::crc::crc24_ble, header::crc::crc24_flexray_a,
-    header::crc::crc24_flexray_b, header::crc::crc24_interlaken, header::crc::crc24_lte_a, header::crc::crc24_lte_b,
-    header::crc::crc24_openpgp, header::crc::crc24_os_9, header::crc::crc30_cdma, header::crc::crc31_philips,
-    header::crc::crc32_aixm, header::crc::crc32_autosar, header::crc::crc32_base91_d, header::crc::crc32,
-    header::crc::crc32_cd_rom_edc, header::crc::crc32_cksum, header::crc::crc32c, header::crc::crc32_iso_hdlc,
-    header::crc::crc32_jamcrc, header::crc::crc32_mef, header::crc::crc32_mpeg2, header::crc::crc32_xfer
-    // , header::crc::crc40_gsm,
-    // , header::crc::crc64_ecma_182,
-    // , header::crc::crc64_go_iso,
-    // , header::crc::crc64_ms,
-    // , header::crc::crc64_nvme,
-    // , header::crc::crc64_redis,
-    // , header::crc::crc64_we,
-    // , header::crc::crc64_xz
-    // , header::crc::crc82_darc
+TEMPLATE_TEST_CASE("process_zero_bytes and parallel", HEADER_OR_MODULE_TAG,
+    crc::crc3_gsm, crc::crc3_rohc, crc::crc4_g_704, crc::crc4_interlaken,
+    crc::crc5_epc_c1g2, crc::crc5_g_704, crc::crc5_usb, crc::crc6_cdma2000_a,
+    crc::crc6_cdma2000_b, crc::crc6_darc, crc::crc6_g_704, crc::crc6_gsm,
+    crc::crc7_mmc, crc::crc7_rohc, crc::crc7_umts, crc::crc8_autosar,
+    crc::crc8_bluetooth, crc::crc8_cdma2000, crc::crc8_darc, crc::crc8_dvb_s2,
+    crc::crc8_gsm_a, crc::crc8_gsm_b, crc::crc8_hitag, crc::crc8_i_432_1,
+    crc::crc8_i_code, crc::crc8_lte, crc::crc8_maxim_dow, crc::crc8_mifare_mad,
+    crc::crc8_nrsc_5, crc::crc8_opensafety, crc::crc8_rohc, crc::crc8_sae_j1850,
+    crc::crc8_smbus, crc::crc8_tech_3250, crc::crc8_wcdma, crc::crc10_atm,
+    crc::crc10_cdma2000, crc::crc10_gsm, crc::crc11_flexray, crc::crc11_umts,
+    crc::crc12_cdma2000, crc::crc12_dect, crc::crc12_gsm, crc::crc12_umts,
+    crc::crc13_bbc, crc::crc14_darc, crc::crc14_gsm, crc::crc15_can,
+    crc::crc15_mpt1327, crc::crc16_arc, crc::crc16_cdma2000, crc::crc16_cms,
+    crc::crc16_dds_110, crc::crc16_dect_r, crc::crc16_dect_x, crc::crc16_dnp,
+    crc::crc16_en_13757, crc::crc16_genibus, crc::crc16_gsm, crc::crc16_ibm_3740,
+    crc::crc16_ibm_sdlc, crc::crc16_iso_iec_14443_3_a, crc::crc16_kermit, crc::crc16_lj1200,
+    crc::crc16_m17, crc::crc16_maxim_dow, crc::crc16_mcrf4xx, crc::crc16_modbus,
+    crc::crc16_nrsc_5, crc::crc16_opensafety_a, crc::crc16_opensafety_b, crc::crc16_profibus,
+    crc::crc16_riello, crc::crc16_spi_fujitsu, crc::crc16_t10_dif, crc::crc16_teledisk,
+    crc::crc16_tms37157, crc::crc16_umts, crc::crc16_usb, crc::crc16_xmodem,
+    crc::crc17_can_fd, crc::crc21_can_fd, crc::crc24_ble, crc::crc24_flexray_a,
+    crc::crc24_flexray_b, crc::crc24_interlaken, crc::crc24_lte_a, crc::crc24_lte_b,
+    crc::crc24_openpgp, crc::crc24_os_9, crc::crc30_cdma, crc::crc31_philips,
+    crc::crc32_aixm, crc::crc32_autosar, crc::crc32_base91_d, crc::crc32,
+    crc::crc32_cd_rom_edc, crc::crc32_cksum, crc::crc32c, crc::crc32_iso_hdlc,
+    crc::crc32_jamcrc, crc::crc32_mef, crc::crc32_mpeg2, crc::crc32_xfer
+    // , crc::crc40_gsm,
+    // , crc::crc64_ecma_182,
+    // , crc::crc64_go_iso,
+    // , crc::crc64_ms,
+    // , crc::crc64_nvme,
+    // , crc::crc64_redis,
+    // , crc::crc64_we,
+    // , crc::crc64_xz
+    // , crc::crc82_darc
 ) {
     // Ensure process_zero_bytes runs in logarithmic time.
-    CHECK_COMPILE_AND_RUN_TIME(((void)header::crc::process_zero_bytes(TestType {}, std::numeric_limits<std::size_t>::max()), true));
+    CHECK_MATRIX(((void)crc::process_zero_bytes(TestType {}, std::numeric_limits<std::size_t>::max()), true));
 
     []<std::size_t... N>(std::index_sequence<N...>){
-        (CHECK_COMPILE_AND_RUN_TIME(
-            header::crc::process(header::crc::slice_by<1>, TestType {}, std::array<std::uint8_t, N> {}) ==
-            header::crc::process_zero_bytes(TestType {}, N)
+        (CHECK_MATRIX(
+            crc::process(crc::slice_by<1>, TestType {}, std::array<std::uint8_t, N> {}) ==
+            crc::process_zero_bytes(TestType {}, N)
         ), ...);
     }(std::make_index_sequence<8>{});
 
@@ -314,8 +292,8 @@ TEMPLATE_TEST_CASE("process_zero_bytes and parallel", "",
         "0DD3E786FE184EDACFEE216435867EF40C73944E34BD776D7FFF12390F78B6993278195D623C1EE8DF2092DDBD57C3E205C585D4E47715D6AF711307F71EF637"
     };
 
-    CHECK_COMPILE_AND_RUN_TIME(
-        header::crc::process(header::crc::parallel<header::crc::slice_by<1>>, TestType {}, long_message) ==
-        header::crc::process(header::crc::slice_by<1>, TestType {}, long_message)
+    CHECK_MATRIX(
+        crc::process(crc::parallel<crc::slice_by<1>>, TestType {}, long_message) ==
+        crc::process(crc::slice_by<1>, TestType {}, long_message)
     );
 }
