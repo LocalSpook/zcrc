@@ -8,6 +8,7 @@
 #include <random>
 #include <ranges>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include <catch2/benchmark/catch_benchmark.hpp>
@@ -17,12 +18,20 @@
 
 namespace {
 
-[[nodiscard]] std::vector<std::uint8_t> generate_random_data(const std::size_t bytes) {
+[[nodiscard]] std::vector<std::uint8_t> generate_random_data(
+    const std::size_t bytes, std::pair<std::uint8_t, std::uint8_t> range = {0, 255}
+) {
     std::mt19937 rng {std::random_device{}()};
-    std::uniform_int_distribution<> dist {0, 255};
+    std::uniform_int_distribution<> dist {range.first, range.second};
     std::vector<std::uint8_t> ret {};
     ret.reserve(bytes);
     std::ranges::generate_n(std::back_insert_iterator(ret), static_cast<std::ptrdiff_t>(bytes), [&] { return dist(rng); });
+    return ret;
+}
+
+[[nodiscard]] std::vector<std::uint8_t> generate_random_cstr(const std::size_t bytes) {
+    std::vector<std::uint8_t> ret {generate_random_data(bytes, {1, 255})};
+    ret.push_back('\0');
     return ret;
 }
 
@@ -77,5 +86,34 @@ TEST_CASE("512 MiB parallel CRC32C slice-by-8") {
         BENCHMARK(std::format("{} threads", i)) {
             return compute<crc::crc32c>(crc::slice_by<8>, i, random_data);
         };
+    }
+}
+
+namespace {
+
+struct null_terminator_sentinel {
+    [[nodiscard]] friend constexpr bool operator==(auto it, null_terminator_sentinel) noexcept {
+        return *it == '\0';
+    }
+};
+
+}
+
+TEST_CASE("cstr") {
+    for (std::size_t i {8}; i <= 1 << 20; i <<= 1) {
+        for (std::size_t j {0}; j < 4; ++j) {
+            const std::size_t len {i + (j * (((i << 1) - i) / 4))};
+
+            const auto cstr1 {generate_random_cstr(len)};
+            BENCHMARK(std::format("{}: strlen + sized", len)) {
+                return crc::crc32c::compute(crc::slice_by<8>, cstr1.begin(),
+                    cstr1.begin() + static_cast<std::ptrdiff_t>(std::strlen(reinterpret_cast<const char *>(cstr1.data()))));
+            };
+
+            const auto cstr2 {generate_random_cstr(len)};
+            BENCHMARK(std::format("{}: unsized", len)) {
+                return crc::crc32c::compute(crc::slice_by<8>, cstr2.begin(), null_terminator_sentinel {});
+            };
+        }
     }
 }

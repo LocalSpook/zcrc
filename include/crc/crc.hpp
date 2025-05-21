@@ -251,52 +251,52 @@ private:
     friend struct detail::is_valid_fn;
 
     struct compute_member_fn {
-        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+        template <std::contiguous_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(detail::compute_member_fn_impl(algo, crc {}, std::move(begin), std::move(end)))
 
         template <std::ranges::contiguous_range R>
-        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+        requires detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(detail::compute_member_fn_impl(algo, crc {}, std::ranges::begin(r), std::ranges::end(r)))
 
-        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+        template <std::contiguous_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(detail::compute_member_fn_impl(default_algorithm, crc {}, std::move(begin), std::move(end)))
 
         template <std::ranges::contiguous_range R>
-        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+        requires detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(R&& r) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(detail::compute_member_fn_impl(default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
     };
 
     struct is_valid_member_fn {
-        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+        template <std::contiguous_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(detail::is_valid_member_fn_impl(algo, crc {}, std::move(begin), std::move(end)))
 
         template <std::ranges::contiguous_range R>
-        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+        requires detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(detail::is_valid_member_fn_impl(algo, crc {}, std::ranges::begin(r), std::ranges::end(r)))
 
-        template <std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+        template <std::contiguous_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(detail::is_valid_member_fn_impl(default_algorithm, crc {}, std::move(begin), std::move(end)))
 
         template <std::ranges::contiguous_range R>
-        requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+        requires detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(R&& r) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(detail::is_valid_member_fn_impl(default_algorithm, crc {}, std::ranges::begin(r), std::ranges::end(r)))
@@ -422,7 +422,7 @@ inline constexpr auto tables {[]<std::size_t... Slice>(std::index_sequence<Slice
 }(std::make_index_sequence<Slices>{})};
 
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
-          std::size_t N, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+          std::size_t N, std::contiguous_iterator I, std::sentinel_for<I> S>
 [[nodiscard]] constexpr least_uint<Width> process_fn_impl(slice_by_t<N>, least_uint<Width> crc, I it, S end) noexcept {
     const auto fold {[&]<std::size_t... B>(std::index_sequence<B...>) {
         CRC_STATIC23 constexpr auto& t {detail::tables<Width, Poly, RefIn, N>};
@@ -435,28 +435,44 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
         }
     }};
 
-    // Process the main body in chunks of N bytes.
-    const auto tail_len {(end - it) % N};
-    for (const auto end_of_main_loop {end - tail_len}; it != end_of_main_loop; it += N) {
-        fold(std::make_index_sequence<N>{});
+    const auto fold_by_n {[&] { fold(std::make_index_sequence<N>{}); }};
+
+    const auto fold_by_powers_of_two {[&] (const std::size_t len) {
+        [&]<std::size_t... P>(std::index_sequence<P...>){
+            (((len & (1 << P))
+                ? (void)(fold(std::make_index_sequence<1 << P>{}), it += 1 << P)
+                : (void)0
+            ), ...);
+        }(std::make_index_sequence<std::bit_width(N - 1)>{});
+    }};
+
+    if constexpr (std::sized_sentinel_for<S, I>) {
+        const auto tail_len {(end - it) % N};
+        for (const auto end_of_main_loop {end - tail_len}; it != end_of_main_loop; it += N) {
+            fold_by_n();
+        }
+
+        fold_by_powers_of_two(tail_len);
+        return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
+    } else {
+        while (true) {
+            for (std::size_t i {0}; i < N; ++i) {
+                if ((it + i) == end) {
+                    fold_by_powers_of_two(i);
+                    return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
+                }
+            }
+            fold_by_n();
+            it += N;
+        }
     }
-
-    // Process the tail in powers of 2.
-    [&]<std::size_t... P>(std::index_sequence<P...>){
-        (((tail_len & (1 << P))
-            ? (void)(fold(std::make_index_sequence<1 << P>{}), it += 1 << P)
-            : (void)0
-        ), ...);
-    }(std::make_index_sequence<std::bit_width(N - 1)>{});
-
-    return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
 }
 
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
-          algorithm A, std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+          algorithm A, std::contiguous_iterator I, std::sentinel_for<I> S>
 [[nodiscard]] constexpr detail::least_uint<Width>
 process_fn_impl(parallel_t<A>, const least_uint<Width> state, const I it, const S end) noexcept {
-    if (std::is_constant_evaluated()) {
+    if (std::is_constant_evaluated() || !std::sized_sentinel_for<S, I>) {
         return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, it, end);
     }
 
@@ -516,14 +532,22 @@ struct process_fn {
         )
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
+              std::contiguous_iterator I, std::sentinel_for<I> S>
+    requires detail::byte_like<std::iter_value_t<I>>
+    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) CRC_CONST_CALL_OPERATOR
+        CRC_RETURNS(detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
+                algo, crc.m_crc, std::to_address(it), end))
+
+    template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
               std::ranges::contiguous_range R>
-    requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+    requires detail::byte_like<std::ranges::range_value_t<R>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(process_fn::operator()(algo, crc, std::ranges::begin(r), std::ranges::end(r)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
-              std::contiguous_iterator I, std::sized_sentinel_for<I> S>
+              std::contiguous_iterator I, std::sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I begin, S end) CRC_CONST_CALL_OPERATOR
@@ -531,7 +555,7 @@ struct process_fn {
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
               std::ranges::contiguous_range R>
-    requires std::ranges::sized_range<R> && detail::byte_like<std::ranges::range_value_t<R>>
+    requires detail::byte_like<std::ranges::range_value_t<R>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(process_fn::operator()(crc, std::ranges::begin(r), std::ranges::end(r)))

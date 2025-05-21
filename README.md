@@ -26,6 +26,7 @@ if (!crc::crc8_bluetooth::is_valid(some_message)) {
 }
 ```
 
+You can pass in any contiguous (not necessarily sized!) range.
 For more complex cases, the CRC can be built up incrementally:
 
 ```cpp
