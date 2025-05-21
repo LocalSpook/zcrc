@@ -1,5 +1,7 @@
 # `cstr.svg`
 
+![image](cstr.svg)
+
 The checked-in `cstr.svg` was generated on a Windows 10 system with an
 Intel Core i7-10700K 3.80 GHz CPU, compiled with `clang++ -O3 -march=native`.
 
