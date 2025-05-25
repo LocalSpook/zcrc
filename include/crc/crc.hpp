@@ -119,11 +119,6 @@ template <typename T>
 concept byte_like = std::is_trivially_copyable_v<T> && sizeof(T) == 1 && !std::same_as<std::remove_cv_t<T>, bool>;
 
 template <typename T>
-[[nodiscard]] constexpr T bottom_n_mask(const std::size_t width) noexcept {
-    return (width == 0) ? 0 : T(~T(0)) >> (std::numeric_limits<T>::digits - width);
-}
-
-template <typename T>
 [[nodiscard]] constexpr bool bit_is_set(const T n, const std::size_t b) noexcept {
     return (n & (T{1} << b)) != T{};
 }
@@ -189,6 +184,11 @@ template <typename T>
 template <typename T>
 [[nodiscard]] constexpr T rshift(const T n, const std::int64_t b) noexcept {
     return detail::lshift(n, -b);
+}
+
+template <typename T>
+[[nodiscard]] constexpr T bottom_n_mask(const std::size_t width) noexcept {
+    return detail::rshift(std::numeric_limits<T>::max(), std::numeric_limits<T>::digits - width);
 }
 
 [[nodiscard]] constexpr auto compute_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
