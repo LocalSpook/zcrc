@@ -53,6 +53,11 @@
 // This is defined when building as a module.
 #ifndef CRC_JUST_THE_INCLUDES
 
+static_assert(std::numeric_limits<unsigned char>::digits == 8,
+    "Architectures where bytes are not 8 bits are not supported.");
+static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big,
+    "Mixed-endian architectures are not supported.");
+
 #ifdef CRC_EXPORT_SYMBOLS
 #define CRC_EXPORT export
 #else
@@ -401,6 +406,7 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t Sli
 inline constexpr auto tables {[]<std::size_t... Slice>(std::index_sequence<Slice...>){
     least_uint<Width> r {RefIn ? 1 : (1ULL << (Width - 1))};
     return std::tuple {((void)Slice, [&] {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
         std::array<detail::least_uint<RefIn ? Width : (std::min)(Width, 7 + std::bit_width(Poly) + (8 * Slice))>, 256> table;
         // Step 1: compute the power of two entries.
         table[0] = 0;
@@ -430,7 +436,8 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
             crc = (std::get<sizeof...(B) - B - 1>(t)[(detail::rshift(crc, 8 * B) & 0xFF) ^ static_cast<std::uint8_t>(it[B])]
                 ^ ... ^ detail::rshift(crc, sizeof...(B) * 8));
         } else {
-            crc = (std::get<sizeof...(B) - B - 1>(t)[(detail::rshift(crc, Width - 8 * (B + 1)) & 0xFF) ^ static_cast<std::uint8_t>(it[B])]
+            crc = (std::get<sizeof...(B) - B - 1>(t)[
+                    (detail::rshift(crc, Width - 8 * (static_cast<std::int64_t>(B) + 1)) & 0xFF) ^ static_cast<std::uint8_t>(it[B])]
                 ^ ... ^ detail::lshift(crc, sizeof...(B) * 8));
         }
     }};
@@ -472,6 +479,9 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
           algorithm A, std::random_access_iterator I, std::sentinel_for<I> S>
 [[nodiscard]] constexpr detail::least_uint<Width>
 process_fn_impl(parallel_t<A>, const least_uint<Width> state, const I it, const S end) noexcept {
+#if !defined(__cpp_lib_parallel_algorithm) || __cpp_lib_parallel_algorithm < 201603L
+    return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, it, end);
+#else
     if (std::is_constant_evaluated() || !std::sized_sentinel_for<S, I>) {
         return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, it, end);
     }
@@ -499,6 +509,7 @@ process_fn_impl(parallel_t<A>, const least_uint<Width> state, const I it, const 
                 end - chunk_end
             );
         });
+#endif
 }
 
 struct process_fn {

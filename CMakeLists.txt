@@ -77,10 +77,22 @@ if(CRC_TEST OR CRC_BENCHMARK)
     FetchContent_MakeAvailable(catch2)
 endif()
 
+# Workaround: CMake since 3.28 will, by default, scan *all* C++ files compiled as
+# C++20 or later for module dependencies using the clang-scan-deps tool. Problem
+# is, the Emscripten SDK before 3.1.57 bundles an LLVM without clang-scan-deps,
+# causing build failures even when not using modules, so we manually tell CMake
+# to skip scanning targets that don't need modules.
+#
+# https://github.com/emscripten-core/emscripten/issues/22305
+function(_crc_disable_module_dependency_scanning target)
+    set_target_properties(${target} PROPERTIES CXX_SCAN_FOR_MODULES OFF)
+endfunction()
+
 if(CRC_TEST)
     add_executable(tests)
     target_sources(tests PRIVATE test/tests.cpp)
     target_link_libraries(tests PRIVATE Catch2::Catch2WithMain crc::crc)
+    _crc_disable_module_dependency_scanning(tests)
     if(CRC_MODULE)
         add_library(module-tests OBJECT)
         target_sources(module-tests PRIVATE test/tests.cpp)
@@ -98,4 +110,5 @@ if(CRC_BENCHMARK)
     add_executable(benchmarks)
     target_sources(benchmarks PRIVATE benchmark/benchmarks.cpp)
     target_link_libraries(benchmarks PRIVATE Catch2::Catch2WithMain crc::crc)
+    _crc_disable_module_dependency_scanning(benchmarks)
 endif()

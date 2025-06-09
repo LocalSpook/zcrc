@@ -1,0 +1,92 @@
+name: Emscripten
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  emscripten:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        emscripten: [
+          { version: tot,    module: true  },
+          { version: 4.0.10, module: true  },
+          { version: 4.0.9,  module: true  },
+          { version: 4.0.8,  module: true  },
+          { version: 4.0.7,  module: true  },
+          { version: 4.0.6,  module: true  },
+          { version: 4.0.5,  module: true  },
+          { version: 4.0.4,  module: true  },
+          { version: 4.0.3,  module: true  },
+          { version: 4.0.2,  module: false },
+          { version: 4.0.1,  module: false },
+          { version: 4.0.0,  module: false },
+          { version: 3.1.74, module: false },
+          { version: 3.1.73, module: false },
+          { version: 3.1.72, module: false },
+          { version: 3.1.71, module: false },
+          { version: 3.1.70, module: false },
+          { version: 3.1.69, module: false },
+          { version: 3.1.68, module: false },
+          { version: 3.1.67, module: false },
+          { version: 3.1.66, module: false },
+          { version: 3.1.65, module: false },
+          { version: 3.1.64, module: false },
+          { version: 3.1.63, module: false },
+          { version: 3.1.62, module: false },
+          { version: 3.1.61, module: false },
+          { version: 3.1.60, module: false },
+          { version: 3.1.59, module: false },
+          { version: 3.1.58, module: false },
+          { version: 3.1.57, module: false },
+          { version: 3.1.56, module: false },
+          { version: 3.1.55, module: false },
+          { version: 3.1.54, module: false },
+          { version: 3.1.53, module: false },
+          { version: 3.1.52, module: false },
+          { version: 3.1.51, module: false },
+          { version: 3.1.50, module: false },
+          { version: 3.1.49, module: false },
+          { version: 3.1.48, module: false },
+          { version: 3.1.47, module: false },
+          { version: 3.1.46, module: false },
+          { version: 3.1.45, module: false },
+          { version: 3.1.44, module: false },
+          { version: 3.1.43, module: false },
+          { version: 3.1.42, module: false },
+          { version: 3.1.41, module: false },
+        ]
+    name: ${{matrix.emscripten.version}}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        git clone --depth 1 https://github.com/emscripten-core/emsdk.git
+        ./emsdk/emsdk install ${{matrix.emscripten.version}}
+        ./emsdk/emsdk activate --permanent ${{matrix.emscripten.version}}
+        echo "source $(realpath ./emsdk/emsdk_env.sh)" >> ~/.bash_profile
+        sudo apt-get update
+        sudo apt-get install cmake ninja-build
+
+    - name: Configure build
+      run: |
+        source ./emsdk/emsdk_env.sh
+        emcmake cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCRC_TEST=ON -DCRC_MODULE=${{matrix.emscripten.module}}
+
+    - name: Build (this includes compile-time tests)
+      run: |
+        source ./emsdk/emsdk_env.sh
+        cmake --build build
+
+    - name: Execute run-time tests
+      run: |
+        source ./emsdk/emsdk_env.sh
+        node ./build/bin/tests.js --order rand --warn NoAssertions

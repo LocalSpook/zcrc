@@ -176,6 +176,23 @@ Just copy [`include/crc/crc.hpp`](include/crc/crc.hpp) into your directory struc
 For any serious project, you're highly recommended to use a proper dependency management
 system instead, but this method *is* officially supported.
 
+## Supported toolchains
+
+| Toolchain  | Version  |
+|------------|----------|
+| Emscripten | ≥ 3.1.41 (with `CRC_MODULE`, ≥ 4.0.3) |
+
+<!--
+Emscripten before 3.1.41 bundles libc++ 15, which has incomplete ranges support
+and would be too much of a hassle to support:
+
+https://github.com/emscripten-core/emscripten/blob/main/ChangeLog.md
+
+4.0.3 is the first version Emscripten advertises support for modules.
+That support is enough for us, but is still imperfect (see
+https://github.com/emscripten-core/emscripten/issues/24454; only fixed in 4.0.10).
+--->
+
 ## Building
 
 Simply run:
