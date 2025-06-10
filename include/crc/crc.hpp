@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+// Homepage:  https://github.com/LocalSpook/crc
+//
 // ────────── Design notes ──────────
 //
 // To understand this library's internals, read the following papers:
