@@ -196,8 +196,8 @@ template <typename T>
     return detail::rshift(std::numeric_limits<T>::max(), std::numeric_limits<T>::digits - width);
 }
 
-[[nodiscard]] constexpr auto compute_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
-[[nodiscard]] constexpr bool is_valid_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept;
+[[nodiscard]] constexpr auto compute_member_fn_impl(auto algo, auto crc, auto begin, auto end) noexcept;
+[[nodiscard]] constexpr bool is_valid_member_fn_impl(auto algo, auto crc, auto begin, auto end) noexcept;
 
 struct combine_fn;
 struct process_zero_bytes_fn;
@@ -340,7 +340,7 @@ struct combine_fn {
     }
 };
 
-template <std::integral T>
+template <typename T>
 [[nodiscard]] constexpr T carryless_multiply(const T lhs, const T rhs) noexcept {
     T ret {};
     for (std::size_t i {0}; i < std::numeric_limits<T>::digits; ++i) {
@@ -427,8 +427,7 @@ inline constexpr auto tables {[]<std::size_t... Slice>(std::index_sequence<Slice
     }())...};
 }(std::make_index_sequence<Slices>{})};
 
-template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
-          std::size_t N, std::random_access_iterator I, std::sentinel_for<I> S>
+template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t N, typename I, typename S>
 [[nodiscard]] constexpr least_uint<Width> process_fn_impl(slice_by_t<N>, least_uint<Width> crc, I it, S end) noexcept {
     const auto fold {[&]<std::size_t... B>(std::index_sequence<B...>) {
         CRC_STATIC23 constexpr auto& t {detail::tables<Width, Poly, RefIn, N>};
@@ -475,8 +474,7 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
     }
 }
 
-template <std::size_t Width, least_uint<Width> Poly, bool RefIn,
-          algorithm A, std::random_access_iterator I, std::sentinel_for<I> S>
+template <std::size_t Width, least_uint<Width> Poly, bool RefIn, typename A, typename I, typename S>
 [[nodiscard]] constexpr detail::least_uint<Width>
 process_fn_impl(parallel_t<A>, const least_uint<Width> state, const I it, const S end) noexcept {
 #if !defined(__cpp_lib_parallel_algorithm) || __cpp_lib_parallel_algorithm < 201603L
@@ -632,11 +630,11 @@ CRC_EXPORT inline constexpr detail::is_valid_fn is_valid {};
 
 namespace detail {
 
-[[nodiscard]] constexpr auto compute_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept {
+[[nodiscard]] constexpr auto compute_member_fn_impl(const auto algo, auto crc, auto begin, auto end) noexcept {
     return finalize(process(algo, crc, std::move(begin), std::move(end)));
 }
 
-[[nodiscard]] constexpr bool is_valid_member_fn_impl(const algorithm auto algo, auto crc, auto begin, auto end) noexcept {
+[[nodiscard]] constexpr bool is_valid_member_fn_impl(const auto algo, auto crc, auto begin, auto end) noexcept {
     return is_valid(process(algo, crc, std::move(begin), std::move(end)));
 }
 
