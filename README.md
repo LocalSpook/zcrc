@@ -26,7 +26,7 @@ if (!crc::crc8_bluetooth::is_valid(some_message)) {
 }
 ```
 
-You can pass in any random access (not necessarily sized!) range.
+You can pass in any input range, but processing is fastest with contiguous sized ranges.
 For more complex cases, the CRC can be built up incrementally:
 
 ```cpp

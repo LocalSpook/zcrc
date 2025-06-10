@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <ranges>
+#include <sstream>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -166,8 +167,8 @@ TEMPLATE_TEST_CASE("basic functionality checks", HEADER_OR_MODULE_TAG, c<1>, c<2
     // CHECK_MATRIX(crc::crc82_darc::compute(crc::slice_by<N>, test_data) == std::bitset<82>{"000010011110101010000011111101100010010100000010001110000000000111111101011000010010");
 
 
-    static constexpr auto test_data_noncontiguous {"012345678"sv | std::views::transform([] (const char c) {
-        return static_cast<char>(c + 1);
+    static constexpr auto test_data_noncontiguous {"123456789"sv | std::views::transform([] (const char c) {
+        return c;
     })};
     static_assert(std::ranges::random_access_range<decltype(test_data_noncontiguous)>);
     static_assert(!std::ranges::contiguous_range<decltype(test_data_noncontiguous)>);
@@ -285,6 +286,16 @@ TEMPLATE_TEST_CASE("basic functionality checks", HEADER_OR_MODULE_TAG, c<1>, c<2
     CHECK_MATRIX(crc::crc64_we::compute(crc::slice_by<N>, test_data_noncontiguous) == 0x62EC59E3F1A4F00A);
     CHECK_MATRIX(crc::crc64_xz::compute(crc::slice_by<N>, test_data_noncontiguous) == 0x995DC9BBDF1939FA);
     // CHECK_MATRIX(crc::crc82_darc::compute(crc::slice_by<N>, test_data_noncontiguous) == std::bitset<82>{"000010011110101010000011111101100010010100000010001110000000000111111101011000010010");
+
+    static_assert(!std::ranges::random_access_range<decltype("123456789"sv | std::views::filter([] (char) { return true; }))>);
+    static_assert(!std::ranges::sized_range<decltype("123456789"sv | std::views::filter([] (char) { return true; }))>);
+
+    CHECK_MATRIX(crc::crc64_xz::compute(crc::slice_by<N>, "123456789"sv | std::views::filter([] (char) { return true; })) == 0x995DC9BBDF1939FA);
+    CHECK_MATRIX(crc::crc64_xz::compute(crc::parallel<crc::slice_by<N>>, "123456789"sv | std::views::filter([] (char) { return true; })) == 0x995DC9BBDF1939FA);
+
+    std::stringstream stream {"123456789"};
+    CHECK(crc::crc64_xz::compute(
+        crc::slice_by<N>, std::ranges::istream_view<char>{stream}) == 0x995DC9BBDF1939FA);
 
     static constexpr std::array<std::string_view, 4> random_messages {
         "3682BBD37BE6475E08320602B656AF65",

@@ -319,86 +319,111 @@ inline constexpr auto tables {[]<std::size_t... Slice>(std::index_sequence<Slice
     }())...};
 }(std::make_index_sequence<Slices>{})};
 
+// A generalized operator[] that works on non-random-access iterators as
+// long as we only try to get the first element.
+template <std::size_t I>
+[[nodiscard]] constexpr decltype(auto) index(auto& it) {
+    if constexpr (I == 0) {
+        return *it;
+    } else {
+        return it[I];
+    }
+}
+
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t N, typename I, typename S>
 [[nodiscard]] constexpr least_uint<Width> process_fn_impl(slice_by_t<N>, least_uint<Width> crc, I it, S end) noexcept {
     const auto fold {[&]<std::size_t... B>(std::index_sequence<B...>) {
         CRC_STATIC23 constexpr auto& t {detail::tables<Width, Poly, RefIn, N>};
         if constexpr (RefIn) {
-            crc = (std::get<sizeof...(B) - B - 1>(t)[(detail::rshift(crc, 8 * B) & 0xFF) ^ static_cast<std::uint8_t>(it[B])]
+            crc = (std::get<sizeof...(B) - B - 1>(t)[
+                    (detail::rshift(crc, 8 * B) & 0xFF) ^ static_cast<std::uint8_t>(detail::index<B>(it))]
                 ^ ... ^ detail::rshift(crc, sizeof...(B) * 8));
         } else {
             crc = (std::get<sizeof...(B) - B - 1>(t)[
-                    (detail::rshift(crc, Width - 8 * (static_cast<std::int64_t>(B) + 1)) & 0xFF) ^ static_cast<std::uint8_t>(it[B])]
+                    (detail::rshift(crc, Width - 8 * (static_cast<std::int64_t>(B) + 1)) & 0xFF) ^
+                    static_cast<std::uint8_t>(detail::index<B>(it))]
                 ^ ... ^ detail::lshift(crc, sizeof...(B) * 8));
         }
     }};
 
-    const auto fold_by_n {[&] { fold(std::make_index_sequence<N>{}); }};
+    if constexpr (std::random_access_iterator<I>) {
+        const auto fold_by_n {[&] { fold(std::make_index_sequence<N>{}); }};
 
-    const auto fold_by_powers_of_two {[&] (const std::size_t len) {
-        [&]<std::size_t... P>(std::index_sequence<P...>){
-            (((len & (1 << P))
-                ? (void)(fold(std::make_index_sequence<1 << P>{}), it += 1 << P)
-                : (void)0
-            ), ...);
-        }(std::make_index_sequence<std::bit_width(N - 1)>{});
-    }};
+        const auto fold_by_powers_of_two {[&] (const std::size_t len) {
+            [&]<std::size_t... P>(std::index_sequence<P...>){
+                (((len & (1 << P))
+                    ? (void)(fold(std::make_index_sequence<1 << P>{}), it += 1 << P)
+                    : (void)0
+                ), ...);
+            }(std::make_index_sequence<std::bit_width(N - 1)>{});
+        }};
 
-    if constexpr (std::sized_sentinel_for<S, I>) {
-        const auto tail_len {(end - it) % N};
-        for (const auto end_of_main_loop {end - tail_len}; it != end_of_main_loop; it += N) {
-            fold_by_n();
-        }
-
-        fold_by_powers_of_two(tail_len);
-        return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
-    } else {
-        while (true) {
-            for (std::size_t i {0}; i < N; ++i) {
-                if ((it + i) == end) {
-                    fold_by_powers_of_two(i);
-                    return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
-                }
+        if constexpr (std::sized_sentinel_for<S, I>) {
+            const auto tail_len {(end - it) % N};
+            for (const auto end_of_main_loop {end - tail_len}; it != end_of_main_loop; it += N) {
+                fold_by_n();
             }
-            fold_by_n();
-            it += N;
+
+            fold_by_powers_of_two(tail_len);
+            return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
+        } else {
+            while (true) {
+                for (std::size_t i {0}; i < N; ++i) {
+                    if ((it + i) == end) {
+                        fold_by_powers_of_two(i);
+                        return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
+                    }
+                }
+                fold_by_n();
+                it += N;
+            }
         }
+    } else {
+        // Ignore N and just use slice-by-1; the range isn't random access, so there's no speed to be gained.
+        for (; it != end; ++it) {
+            fold(std::make_index_sequence<1>{});
+        }
+        return crc & detail::bottom_n_mask<least_uint<Width>>(Width);
     }
 }
 
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn, typename A, typename I, typename S>
 [[nodiscard]] constexpr detail::least_uint<Width>
-process_fn_impl(parallel_t<A>, const least_uint<Width> state, const I it, const S end) noexcept {
+process_fn_impl(parallel_t<A>, const least_uint<Width> state, I it, S end) noexcept {
 #if !defined(__cpp_lib_parallel_algorithm) || __cpp_lib_parallel_algorithm < 201603L
-    return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, it, end);
+    return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, std::move(it), std::move(end));
 #else
-    if (std::is_constant_evaluated() || !std::sized_sentinel_for<S, I>) {
-        return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, it, end);
+    if (std::is_constant_evaluated()) {
+        return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, std::move(it), std::move(end));
     }
 
-    const auto len {static_cast<std::size_t>(end - it)};
-    const std::size_t hardware_threads {std::jthread::hardware_concurrency()};
-    const std::size_t chunk_length {len / hardware_threads};
-    const auto indices {std::views::iota(static_cast<std::size_t>(0), hardware_threads)};
-    return std::transform_reduce(
-        std::execution::par,
-        std::ranges::begin(indices),
-        std::ranges::end(indices),
-        detail::least_uint<Width>{},
-        [] (const auto lhs, const auto rhs) noexcept { return lhs ^ rhs; },
-        [&] (const std::size_t i) noexcept {
-            const auto chunk_begin {(i == 0) ? it : (it + (len % chunk_length) + (i * chunk_length))};
-            const auto chunk_end {it + (len % chunk_length) + ((i + 1) * chunk_length)};
-            return detail::process_zero_bytes_fn_impl<Width, Poly, RefIn>(
-                detail::process_fn_impl<Width, Poly, RefIn>(
-                    A {},
-                    (i == 0) ? state : 0,
-                    chunk_begin,
-                    chunk_end
-                ),
-                end - chunk_end
-            );
-        });
+    if constexpr (!std::sized_sentinel_for<S, I> || !std::random_access_iterator<I>) {
+        return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, std::move(it), std::move(end));
+    } else {
+        const auto len {static_cast<std::size_t>(end - it)};
+        const std::size_t hardware_threads {std::jthread::hardware_concurrency()};
+        const std::size_t chunk_length {len / hardware_threads};
+        const auto indices {std::views::iota(static_cast<std::size_t>(0), hardware_threads)};
+        return std::transform_reduce(
+            std::execution::par,
+            std::ranges::begin(indices),
+            std::ranges::end(indices),
+            detail::least_uint<Width>{},
+            [] (const auto lhs, const auto rhs) noexcept { return lhs ^ rhs; },
+            [&] (const std::size_t i) noexcept {
+                const auto chunk_begin {(i == 0) ? it : (it + (len % chunk_length) + (i * chunk_length))};
+                const auto chunk_end {it + (len % chunk_length) + ((i + 1) * chunk_length)};
+                return detail::process_zero_bytes_fn_impl<Width, Poly, RefIn>(
+                    detail::process_fn_impl<Width, Poly, RefIn>(
+                        A {},
+                        (i == 0) ? state : 0,
+                        chunk_begin,
+                        chunk_end
+                    ),
+                    end - chunk_end
+                );
+            });
+    }
 #endif
 }
 
@@ -433,37 +458,29 @@ struct process_fn {
         )
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
-              std::contiguous_iterator I, std::sentinel_for<I> S>
+              std::input_iterator I, std::sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
-                algo, crc.m_crc, std::to_address(it), end))
+                algo, crc.m_crc, std::move(it), std::move(end)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
-              std::random_access_iterator I, std::sentinel_for<I> S>
-    requires detail::byte_like<std::iter_value_t<I>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
-                algo, crc.m_crc, it, end))
-
-    template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
-              std::ranges::random_access_range R>
+              std::ranges::input_range R>
     requires detail::byte_like<std::ranges::range_value_t<R>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(process_fn::operator()(algo, crc, std::ranges::begin(r), std::ranges::end(r)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
-              std::random_access_iterator I, std::sentinel_for<I> S>
+              std::input_iterator I, std::sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I begin, S end) CRC_CONST_CALL_OPERATOR
         CRC_RETURNS(process_fn::operator()(default_algorithm, crc, std::move(begin), std::move(end)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
-              std::ranges::random_access_range R>
+              std::ranges::input_range R>
     requires detail::byte_like<std::ranges::range_value_t<R>>
     [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
@@ -558,25 +575,25 @@ private:
     friend struct detail::is_valid_fn;
 
     struct compute_member_fn {
-        template <std::random_access_iterator I, std::sentinel_for<I> S>
+        template <std::input_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(finalize(process(algo, crc {}, std::move(begin), std::move(end))))
 
-        template <std::ranges::random_access_range R>
+        template <std::ranges::input_range R>
         requires detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(compute_member_fn::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
 
-        template <std::random_access_iterator I, std::sentinel_for<I> S>
+        template <std::input_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(compute_member_fn::operator()(default_algorithm, std::move(begin), std::move(end)))
 
-        template <std::ranges::random_access_range R>
+        template <std::ranges::input_range R>
         requires detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
         operator()(R&& r) CRC_CONST_CALL_OPERATOR
@@ -584,25 +601,25 @@ private:
     };
 
     struct is_valid_member_fn {
-        template <std::random_access_iterator I, std::sentinel_for<I> S>
+        template <std::input_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(::crc::is_valid(process(algo, crc {}, std::move(begin), std::move(end))))
 
-        template <std::ranges::random_access_range R>
+        template <std::ranges::input_range R>
         requires detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(is_valid_member_fn::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
 
-        template <std::random_access_iterator I, std::sentinel_for<I> S>
+        template <std::input_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
             CRC_RETURNS(is_valid_member_fn::operator()(default_algorithm, std::move(begin), std::move(end)))
 
-        template <std::ranges::random_access_range R>
+        template <std::ranges::input_range R>
         requires detail::byte_like<std::ranges::range_value_t<R>>
         [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
         operator()(R&& r) CRC_CONST_CALL_OPERATOR
