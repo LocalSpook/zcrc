@@ -7,6 +7,9 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+env:
+    llvm_version: 21
+
 jobs:
   clang-tidy:
     name: clang-tidy
@@ -20,12 +23,15 @@ jobs:
 
     - name: Install dependencies
       run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh ${{env.llvm_version}}
         sudo apt-get update
-        sudo apt-get install clang-19 clang-tools-19 clang-tidy-19 cmake ninja-build
+        sudo apt-get install clang-tidy-${{env.llvm_version}} cmake ninja-build
 
     - name: Configure build
       run: |
-        cmake -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-19 -DCRC_TEST=ON -DCRC_BENCHMARK=ON
+        cmake -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-${{env.llvm_version}} -DCRC_TEST=ON -DCRC_BENCHMARK=ON
 
     - name: Build
       run: |
@@ -33,4 +39,4 @@ jobs:
 
     - name: Run clang-tidy
       run: |
-        clang-tidy-19 --warnings-as-errors="*" -p build test/*.cpp benchmark/*.cpp include/crc/*.hpp
+        clang-tidy-${{env.llvm_version}} --warnings-as-errors="*" -p build test/*.cpp benchmark/*.cpp include/crc/*.hpp
