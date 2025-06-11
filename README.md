@@ -110,12 +110,12 @@ but you can define your own too:
 
 ```cpp
 using crc32c = crc::crc<
-    32,            // The polynomial's width.
-    0x1EDC6F41,    // The polynomial, with an implicit leading term.
-    0xFFFFFFFF,    // The initial value of the CRC register.
-    true,          // True if the bits in a byte should be ordered from LSb to MSb, false if vice-versa.
-    true,          // True if the result should be reflected during finalization.
-    0xFFFFFFFF     // The value XORed into the result at the very end, after any reflection.
+    32,         // The polynomial's width.
+    0x1EDC6F41, // The polynomial, with an implicit leading term.
+    0xFFFFFFFF, // The initial value of the CRC register.
+    true,       // True if the bits in a byte should be ordered from LSb to MSb, false if vice-versa.
+    true,       // True if the result should be reflected during finalization.
+    0xFFFFFFFF  // The value XORed into the result at the very end, after any reflection.
 >;
 ```
 
