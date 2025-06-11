@@ -7,6 +7,8 @@ It's functional, but its main selling point—SIMD acceleration—is not yet imp
 
 A C++20 SIMD-accelerated high-performance constexpr-capable single-header-only CRC library with over 100 predefined CRCs and the ability to create custom ones.
 
+[Try it live right now on Compiler Explorer!](https://godbolt.org/z/xWofd4Ehc)
+
 ## API
 
 Most likely, all you're looking for is a simple function that computes a common CRC variant.
