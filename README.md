@@ -86,15 +86,13 @@ void my_function(crc::algorithm auto algo, ...) {
 
 Computing CRCs is an embarrassingly parallel problem.
 To enable parallelization,
-simply wrap an ordinary algorithm with the `crc::parallel` adaptor and pass it to `crc::<...>::compute`, `crc::<...>::is_valid`, or `crc::process` as you normally would:
+simply wrap an ordinary algorithm with the `crc::parallel` adaptor and pass it to a function as you normally would:
 
 ```cpp
 crc::crc32c::compute(crc::parallel<crc::slice_by<8>>, ...);
 ```
 
 (The function is still constexpr! It'll just dispatch to a sequential algorithm if evaluated at compile time.)
-
-Note that parallelizing CRCs of width greater than 32 is currently unsupported.
 
 The parallel algorithm divides the message into as many chunks as the system has hardware threads.
 Each thread processes its chunk using the wrapped algorithm (in this case, `crc::slice_by<8>`).

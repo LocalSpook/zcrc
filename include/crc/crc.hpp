@@ -232,58 +232,49 @@ struct combine_fn {
     }
 };
 
-template <typename T>
-[[nodiscard]] constexpr T carryless_multiply(const T lhs, const T rhs) noexcept {
-    T ret {};
-    for (std::size_t i {0}; i < std::numeric_limits<T>::digits; ++i) {
-        ret ^= detail::bit_is_set(rhs, i) ? (lhs << i) : 0;
+// Compute A · B mod P
+template <std::size_t Width, detail::least_uint<Width> Poly, bool RefIn>
+[[nodiscard]] constexpr detail::least_uint<Width>
+clmul_over_field(const detail::least_uint<Width> lhs, const detail::least_uint<Width> rhs) noexcept {
+    detail::least_uint<Width> r {};
+    for (std::size_t i {0}; i < Width; ++i) {
+        if constexpr (RefIn) {
+            r = (r >> 1) ^
+                (detail::bit_is_set(r, 0) ? detail::reflect(Poly, Width) : 0) ^
+                (detail::bit_is_set(lhs, i) ? rhs : 0);
+        } else {
+            r = (r << 1) ^
+                (detail::bit_is_set(r, Width - 1) ? Poly : 0) ^
+                (detail::bit_is_set(lhs, Width - 1 - i) ? rhs : 0);
+        }
     }
-    return ret;
+    return r & detail::bottom_n_mask<detail::least_uint<Width>>(Width);
 }
 
 template <std::size_t Width, auto Poly, bool RefIn>
-inline constexpr auto folding_constants {[]{
+inline constexpr auto folding_constants {[] {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
     std::array<detail::least_uint<Width>, std::numeric_limits<std::size_t>::digits> folding_constants_;
-    for (detail::least_uint<std::max<std::size_t>(Width * 2, 9)> r {1 << 4}; auto& entry : folding_constants_) {
-        r = detail::carryless_multiply(r, r);
-        for (std::size_t i {std::max<std::size_t>(Width * 2 - 1, 8)}; i >= Width; --i) {
-            r ^= detail::bit_is_set(r, i) ? (static_cast<decltype(r)>(Poly) << (i - Width)) : 0;
-        }
-        r &= detail::bottom_n_mask<decltype(r)>(Width);
-        entry = RefIn ? detail::reflect(r, Width) : r;
+    for (detail::least_uint<Width> r {1ULL << (RefIn ? (Width - 5) : 4)}; auto& entry : folding_constants_) {
+        r = entry = detail::clmul_over_field<Width, Poly, RefIn>(r, r);
     }
     return folding_constants_;
 }()};
 
 template <std::size_t Width, auto Poly, bool RefIn>
 [[nodiscard]] constexpr detail::least_uint<Width>
-process_zero_bytes_fn_impl(detail::least_uint<Width> state, std::size_t n) noexcept {
-    static_assert(Width <= 32, "process_zero_bytes is not yet implemented for CRCs with width greater than 32");
-
-    if constexpr (Width < 8 && !RefIn) {
+process_zero_bytes_fn_impl(detail::least_uint<Width> state, const std::size_t n) noexcept {
+    if constexpr (Width < 8) {
         return detail::process_zero_bytes_fn_impl<8, Poly << (8 - Width), RefIn>(state, n);
-    }
-
-    while (n != 0) {
-        const auto b {static_cast<std::size_t>(std::countr_zero(n))};
-        auto r {detail::carryless_multiply<detail::least_uint<Width * 2>>(state, folding_constants<Width, Poly, RefIn>[b])};
-        if constexpr (RefIn) {
-            CRC_STATIC23 constexpr auto adjusted_poly {static_cast<decltype(r)>(detail::reflect(Poly, Width)) << 1};
-            for (std::size_t i {0}; i < (Width - 1); ++i) {
-                r ^= detail::bit_is_set(r, i) ? (adjusted_poly << i) : 0;
-            }
-            r >>= Width - 1;
-        } else {
-            CRC_STATIC23 constexpr auto adjusted_poly {static_cast<decltype(r)>(Poly) | (1ULL << Width)};
-            for (std::size_t i {Width * 2 - 2}; i >= Width; --i) {
-                r ^= detail::bit_is_set(r, i) ? (adjusted_poly << (i - Width)) : 0;
+    } else {
+        for (std::size_t i {0}; i < std::numeric_limits<std::size_t>::digits; ++i) {
+            if (detail::bit_is_set(n, i)) {
+                state = detail::clmul_over_field<Width, Poly, RefIn>(
+                    state, detail::folding_constants<Width, Poly, RefIn>[i]);
             }
         }
-        state = r;
-        n ^= (1ULL << b);
+        return state;
     }
-    return state;
 }
 
 struct process_zero_bytes_fn {

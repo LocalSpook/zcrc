@@ -379,15 +379,9 @@ TEMPLATE_TEST_CASE("process_zero_bytes and parallel", HEADER_OR_MODULE_TAG,
     crc::crc24_openpgp, crc::crc24_os_9, crc::crc30_cdma, crc::crc31_philips,
     crc::crc32_aixm, crc::crc32_autosar, crc::crc32_base91_d, crc::crc32,
     crc::crc32_cd_rom_edc, crc::crc32_cksum, crc::crc32c, crc::crc32_iso_hdlc,
-    crc::crc32_jamcrc, crc::crc32_mef, crc::crc32_mpeg2, crc::crc32_xfer
-    // , crc::crc40_gsm,
-    // , crc::crc64_ecma_182,
-    // , crc::crc64_go_iso,
-    // , crc::crc64_ms,
-    // , crc::crc64_nvme,
-    // , crc::crc64_redis,
-    // , crc::crc64_we,
-    // , crc::crc64_xz
+    crc::crc32_jamcrc, crc::crc32_mef, crc::crc32_mpeg2, crc::crc32_xfer,
+    crc::crc40_gsm, crc::crc64_ecma_182, crc::crc64_go_iso, crc::crc64_ms,
+    crc::crc64_nvme, crc::crc64_redis, crc::crc64_we, crc::crc64_xz
     // , crc::crc82_darc
 ) {
     // Ensure process_zero_bytes runs in logarithmic time.
