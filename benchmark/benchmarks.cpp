@@ -15,7 +15,7 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include <crc/crc.hpp>
+#include <zcrc/zcrc.hpp>
 
 namespace {
 
@@ -37,14 +37,14 @@ namespace {
 }
 
 template <typename CRC>
-[[nodiscard]] constexpr auto compute(const crc::algorithm auto algo, const std::size_t threads, auto&& range) {
+[[nodiscard]] constexpr auto compute(const zcrc::algorithm auto algo, const std::size_t threads, auto&& range) {
     const auto it {std::ranges::begin(range)};
     const auto end {std::ranges::end(range)};
     const auto len {static_cast<std::size_t>(end - it)};
     const std::size_t chunk_length {len / threads};
 
     std::mutex ret_mutex {};
-    CRC ret {crc::zero_init};
+    CRC ret {zcrc::zero_init};
     {
         std::vector<std::jthread> pool;
         pool.reserve(threads);
@@ -52,21 +52,21 @@ template <typename CRC>
             pool.emplace_back([&, i] () noexcept {
             const auto chunk_begin {(i == 0) ? it : (it + (len % chunk_length) + (i * chunk_length))};
             const auto chunk_end {it + (len % chunk_length) + ((i + 1) * chunk_length)};
-                auto temp {crc::process_zero_bytes(
-                    crc::process(
+                auto temp {zcrc::process_zero_bytes(
+                    zcrc::process(
                         algo,
-                        (i == 0) ? CRC {} : CRC{crc::zero_init},
+                        (i == 0) ? CRC {} : CRC{zcrc::zero_init},
                         chunk_begin,
                         chunk_end
                     ),
                     end - chunk_end
                 )};
                 const std::scoped_lock lock {ret_mutex};
-                ret = crc::combine(ret, temp);
+                ret = zcrc::combine(ret, temp);
             });
         }
     }
-    return crc::finalize(ret);
+    return zcrc::finalize(ret);
 }
 
 }
@@ -76,16 +76,16 @@ TEST_CASE("512 MiB parallel CRC32C slice-by-8") {
     std::cout << std::format("Hardware threads: {}\n", std::jthread::hardware_concurrency());
 
     BENCHMARK("sequential") {
-        return crc::crc32c::compute(crc::slice_by<8>, random_data);
+        return zcrc::crc32c::compute(zcrc::slice_by<8>, random_data);
     };
 
-    BENCHMARK("crc::parallel") {
-        return crc::crc32c::compute(crc::parallel<crc::slice_by<8>>, random_data);
+    BENCHMARK("zcrc::parallel") {
+        return zcrc::crc32c::compute(zcrc::parallel<zcrc::slice_by<8>>, random_data);
     };
 
     for (const auto i : std::views::iota(2U, std::jthread::hardware_concurrency() + 1)) {
         BENCHMARK(std::format("{} threads", i)) {
-            return compute<crc::crc32c>(crc::slice_by<8>, i, random_data);
+            return compute<zcrc::crc32c>(zcrc::slice_by<8>, i, random_data);
         };
     }
 }
@@ -107,13 +107,13 @@ TEST_CASE("cstr") {
 
             const auto cstr1 {generate_random_cstr(len)};
             BENCHMARK(std::format("{}: strlen + sized", len)) {
-                return crc::crc32c::compute(crc::slice_by<8>, cstr1.begin(),
+                return zcrc::crc32c::compute(zcrc::slice_by<8>, cstr1.begin(),
                     cstr1.begin() + static_cast<std::ptrdiff_t>(std::strlen(reinterpret_cast<const char *>(cstr1.data()))));
             };
 
             const auto cstr2 {generate_random_cstr(len)};
             BENCHMARK(std::format("{}: unsized", len)) {
-                return crc::crc32c::compute(crc::slice_by<8>, cstr2.begin(), null_terminator_sentinel {});
+                return zcrc::crc32c::compute(zcrc::slice_by<8>, cstr2.begin(), null_terminator_sentinel {});
             };
         }
     }

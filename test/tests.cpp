@@ -15,11 +15,11 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 
-#ifdef CRC_TEST_MODULE
-import crc;
+#ifdef ZCRC_TEST_MODULE
+import zcrc;
 #define HEADER_OR_MODULE_TAG "[module]"
 #else
-#include <crc/crc.hpp>
+#include <zcrc/zcrc.hpp>
 #define HEADER_OR_MODULE_TAG "[header]"
 #endif
 
@@ -31,141 +31,141 @@ import crc;
 using namespace std::literals;
 
 TEST_CASE("compile-time checks", HEADER_OR_MODULE_TAG) {
-    CHECK_MATRIX(crc::algorithm<crc::slice_by_t<0xC0FFEE>>);
-    CHECK_MATRIX(crc::algorithm<crc::parallel_t<crc::slice_by_t<0xC0FFEE>>>);
-    CHECK_MATRIX(crc::algorithm<decltype(crc::default_algorithm)>);
-    CHECK_MATRIX(!crc::algorithm<int>);
-    CHECK_MATRIX(std::regular_invocable<decltype(crc::crc32c::compute), std::vector<char>&>);
-    CHECK_MATRIX(std::regular_invocable<decltype(crc::crc32c::compute), std::vector<unsigned char>&>);
-    CHECK_MATRIX(std::regular_invocable<decltype(crc::crc32c::compute), std::vector<std::byte>&>);
-    CHECK_MATRIX(std::regular_invocable<decltype(crc::crc32c::compute), std::vector<char8_t>&>);
-    CHECK_MATRIX(!std::regular_invocable<decltype(crc::crc32c::compute), std::vector<bool>&>);
-    CHECK_MATRIX(!std::regular_invocable<decltype(crc::crc32c::compute), std::vector<std::uint16_t>&>);
+    CHECK_MATRIX(zcrc::algorithm<zcrc::slice_by_t<0xC0FFEE>>);
+    CHECK_MATRIX(zcrc::algorithm<zcrc::parallel_t<zcrc::slice_by_t<0xC0FFEE>>>);
+    CHECK_MATRIX(zcrc::algorithm<decltype(zcrc::default_algorithm)>);
+    CHECK_MATRIX(!zcrc::algorithm<int>);
+    CHECK_MATRIX(std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<char>&>);
+    CHECK_MATRIX(std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<unsigned char>&>);
+    CHECK_MATRIX(std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<std::byte>&>);
+    CHECK_MATRIX(std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<char8_t>&>);
+    CHECK_MATRIX(!std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<bool>&>);
+    CHECK_MATRIX(!std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<std::uint16_t>&>);
 }
 
 TEMPLATE_TEST_CASE("basic functionality checks", HEADER_OR_MODULE_TAG,
-    crc::slice_by_t<1>,
-    crc::slice_by_t<2>,
-    crc::slice_by_t<3>,
-    crc::slice_by_t<4>,
-    crc::slice_by_t<5>
+    zcrc::slice_by_t<1>,
+    zcrc::slice_by_t<2>,
+    zcrc::slice_by_t<3>,
+    zcrc::slice_by_t<4>,
+    zcrc::slice_by_t<5>
 ) {
     static constexpr TestType algo {};
     static constexpr std::string_view test_data {"123456789"};
 
-    CHECK_MATRIX(crc::crc3_gsm::compute(algo, test_data) == 0x4);
-    CHECK_MATRIX(crc::crc3_rohc::compute(algo, test_data) == 0x6);
-    CHECK_MATRIX(crc::crc4_g_704::compute(algo, test_data) == 0x7);
-    CHECK_MATRIX(crc::crc4_interlaken::compute(algo, test_data) == 0xB);
-    CHECK_MATRIX(crc::crc5_epc_c1g2::compute(algo, test_data) == 0x00);
-    CHECK_MATRIX(crc::crc5_g_704::compute(algo, test_data) == 0x07);
-    CHECK_MATRIX(crc::crc5_usb::compute(algo, test_data) == 0x19);
-    CHECK_MATRIX(crc::crc6_cdma2000_a::compute(algo, test_data) == 0x0D);
-    CHECK_MATRIX(crc::crc6_cdma2000_b::compute(algo, test_data) == 0x3B);
-    CHECK_MATRIX(crc::crc6_darc::compute(algo, test_data) == 0x26);
-    CHECK_MATRIX(crc::crc6_g_704::compute(algo, test_data) == 0x06);
-    CHECK_MATRIX(crc::crc6_gsm::compute(algo, test_data) == 0x13);
-    CHECK_MATRIX(crc::crc7_mmc::compute(algo, test_data) == 0x75);
-    CHECK_MATRIX(crc::crc7_rohc::compute(algo, test_data) == 0x53);
-    CHECK_MATRIX(crc::crc7_umts::compute(algo, test_data) == 0x61);
-    CHECK_MATRIX(crc::crc8_autosar::compute(algo, test_data) == 0xDF);
-    CHECK_MATRIX(crc::crc8_bluetooth::compute(algo, test_data) == 0x26);
-    CHECK_MATRIX(crc::crc8_cdma2000::compute(algo, test_data) == 0xDA);
-    CHECK_MATRIX(crc::crc8_darc::compute(algo, test_data) == 0x15);
-    CHECK_MATRIX(crc::crc8_dvb_s2::compute(algo, test_data) == 0xBC);
-    CHECK_MATRIX(crc::crc8_gsm_a::compute(algo, test_data) == 0x37);
-    CHECK_MATRIX(crc::crc8_gsm_b::compute(algo, test_data) == 0x94);
-    CHECK_MATRIX(crc::crc8_hitag::compute(algo, test_data) == 0xB4);
-    CHECK_MATRIX(crc::crc8_i_432_1::compute(algo, test_data) == 0xA1);
-    CHECK_MATRIX(crc::crc8_i_code::compute(algo, test_data) == 0x7E);
-    CHECK_MATRIX(crc::crc8_lte::compute(algo, test_data) == 0xEA);
-    CHECK_MATRIX(crc::crc8_maxim_dow::compute(algo, test_data) == 0xA1);
-    CHECK_MATRIX(crc::crc8_mifare_mad::compute(algo, test_data) == 0x99);
-    CHECK_MATRIX(crc::crc8_nrsc_5::compute(algo, test_data) == 0xF7);
-    CHECK_MATRIX(crc::crc8_opensafety::compute(algo, test_data) == 0x3E);
-    CHECK_MATRIX(crc::crc8_rohc::compute(algo, test_data) == 0xD0);
-    CHECK_MATRIX(crc::crc8_sae_j1850::compute(algo, test_data) == 0x4B);
-    CHECK_MATRIX(crc::crc8_smbus::compute(algo, test_data) == 0xF4);
-    CHECK_MATRIX(crc::crc8_tech_3250::compute(algo, test_data) == 0x97);
-    CHECK_MATRIX(crc::crc8_wcdma::compute(algo, test_data) == 0x25);
-    CHECK_MATRIX(crc::crc10_atm::compute(algo, test_data) == 0x199);
-    CHECK_MATRIX(crc::crc10_cdma2000::compute(algo, test_data) == 0x233);
-    CHECK_MATRIX(crc::crc10_gsm::compute(algo, test_data) == 0x12A);
-    CHECK_MATRIX(crc::crc11_flexray::compute(algo, test_data) == 0x5A3);
-    CHECK_MATRIX(crc::crc11_umts::compute(algo, test_data) == 0x061);
-    CHECK_MATRIX(crc::crc12_cdma2000::compute(algo, test_data) == 0xD4D);
-    CHECK_MATRIX(crc::crc12_dect::compute(algo, test_data) == 0xF5B);
-    CHECK_MATRIX(crc::crc12_gsm::compute(algo, test_data) == 0xB34);
-    CHECK_MATRIX(crc::crc12_umts::compute(algo, test_data) == 0xDAF);
-    CHECK_MATRIX(crc::crc13_bbc::compute(algo, test_data) == 0x04FA);
-    CHECK_MATRIX(crc::crc14_darc::compute(algo, test_data) == 0x082D);
-    CHECK_MATRIX(crc::crc14_gsm::compute(algo, test_data) == 0x30AE);
-    CHECK_MATRIX(crc::crc15_can::compute(algo, test_data) == 0x059E);
-    CHECK_MATRIX(crc::crc15_mpt1327::compute(algo, test_data) == 0x2566);
-    CHECK_MATRIX(crc::crc16_arc::compute(algo, test_data) == 0xBB3D);
-    CHECK_MATRIX(crc::crc16_cdma2000::compute(algo, test_data) == 0x4C06);
-    CHECK_MATRIX(crc::crc16_cms::compute(algo, test_data) == 0xAEE7);
-    CHECK_MATRIX(crc::crc16_dds_110::compute(algo, test_data) == 0x9ECF);
-    CHECK_MATRIX(crc::crc16_dect_r::compute(algo, test_data) == 0x007E);
-    CHECK_MATRIX(crc::crc16_dect_x::compute(algo, test_data) == 0x007F);
-    CHECK_MATRIX(crc::crc16_dnp::compute(algo, test_data) == 0xEA82);
-    CHECK_MATRIX(crc::crc16_en_13757::compute(algo, test_data) == 0xC2B7);
-    CHECK_MATRIX(crc::crc16_genibus::compute(algo, test_data) == 0xD64E);
-    CHECK_MATRIX(crc::crc16_gsm::compute(algo, test_data) == 0xCE3C);
-    CHECK_MATRIX(crc::crc16_ibm_3740::compute(algo, test_data) == 0x29B1);
-    CHECK_MATRIX(crc::crc16_ibm_sdlc::compute(algo, test_data) == 0x906E);
-    CHECK_MATRIX(crc::crc16_iso_iec_14443_3_a::compute(algo, test_data) == 0xBF05);
-    CHECK_MATRIX(crc::crc16_kermit::compute(algo, test_data) == 0x2189);
-    CHECK_MATRIX(crc::crc16_lj1200::compute(algo, test_data) == 0xBDF4);
-    CHECK_MATRIX(crc::crc16_m17::compute(algo, test_data) == 0x772B);
-    CHECK_MATRIX(crc::crc16_maxim_dow::compute(algo, test_data) == 0x44C2);
-    CHECK_MATRIX(crc::crc16_mcrf4xx::compute(algo, test_data) == 0x6F91);
-    CHECK_MATRIX(crc::crc16_modbus::compute(algo, test_data) == 0x4B37);
-    CHECK_MATRIX(crc::crc16_nrsc_5::compute(algo, test_data) == 0xA066);
-    CHECK_MATRIX(crc::crc16_opensafety_a::compute(algo, test_data) == 0x5D38);
-    CHECK_MATRIX(crc::crc16_opensafety_b::compute(algo, test_data) == 0x20FE);
-    CHECK_MATRIX(crc::crc16_profibus::compute(algo, test_data) == 0xA819);
-    CHECK_MATRIX(crc::crc16_riello::compute(algo, test_data) == 0x63D0);
-    CHECK_MATRIX(crc::crc16_spi_fujitsu::compute(algo, test_data) == 0xE5CC);
-    CHECK_MATRIX(crc::crc16_t10_dif::compute(algo, test_data) == 0xD0DB);
-    CHECK_MATRIX(crc::crc16_teledisk::compute(algo, test_data) == 0x0FB3);
-    CHECK_MATRIX(crc::crc16_tms37157::compute(algo, test_data) == 0x26B1);
-    CHECK_MATRIX(crc::crc16_umts::compute(algo, test_data) == 0xFEE8);
-    CHECK_MATRIX(crc::crc16_usb::compute(algo, test_data) == 0xB4C8);
-    CHECK_MATRIX(crc::crc16_xmodem::compute(algo, test_data) == 0x31C3);
-    CHECK_MATRIX(crc::crc17_can_fd::compute(algo, test_data) == 0x04F03);
-    CHECK_MATRIX(crc::crc21_can_fd::compute(algo, test_data) == 0x0ED841);
-    CHECK_MATRIX(crc::crc24_ble::compute(algo, test_data) == 0xC25A56);
-    CHECK_MATRIX(crc::crc24_flexray_a::compute(algo, test_data) == 0x7979BD);
-    CHECK_MATRIX(crc::crc24_flexray_b::compute(algo, test_data) == 0x1F23B8);
-    CHECK_MATRIX(crc::crc24_interlaken::compute(algo, test_data) == 0xB4F3E6);
-    CHECK_MATRIX(crc::crc24_lte_a::compute(algo, test_data) == 0xCDE703);
-    CHECK_MATRIX(crc::crc24_lte_b::compute(algo, test_data) == 0x23EF52);
-    CHECK_MATRIX(crc::crc24_openpgp::compute(algo, test_data) == 0x21CF02);
-    CHECK_MATRIX(crc::crc24_os_9::compute(algo, test_data) == 0x200FA5);
-    CHECK_MATRIX(crc::crc30_cdma::compute(algo, test_data) == 0x04C34ABF);
-    CHECK_MATRIX(crc::crc31_philips::compute(algo, test_data) == 0x0CE9E46C);
-    CHECK_MATRIX(crc::crc32_aixm::compute(algo, test_data) == 0x3010BF7F);
-    CHECK_MATRIX(crc::crc32_autosar::compute(algo, test_data) == 0x1697D06A);
-    CHECK_MATRIX(crc::crc32_base91_d::compute(algo, test_data) == 0x87315576);
-    CHECK_MATRIX(crc::crc32::compute(algo, test_data) == 0xFC891918);
-    CHECK_MATRIX(crc::crc32_cd_rom_edc::compute(algo, test_data) == 0x6EC2EDC4);
-    CHECK_MATRIX(crc::crc32_cksum::compute(algo, test_data) == 0x765E7680);
-    CHECK_MATRIX(crc::crc32c::compute(algo, test_data) == 0xE3069283);
-    CHECK_MATRIX(crc::crc32_iso_hdlc::compute(algo, test_data) == 0xCBF43926);
-    CHECK_MATRIX(crc::crc32_jamcrc::compute(algo, test_data) == 0x340BC6D9);
-    CHECK_MATRIX(crc::crc32_mef::compute(algo, test_data) == 0xD2C22F51);
-    CHECK_MATRIX(crc::crc32_mpeg2::compute(algo, test_data) == 0x0376E6E7);
-    CHECK_MATRIX(crc::crc32_xfer::compute(algo, test_data) == 0xBD0BE338);
-    CHECK_MATRIX(crc::crc40_gsm::compute(algo, test_data) == 0xD4164FC646);
-    CHECK_MATRIX(crc::crc64_ecma_182::compute(algo, test_data) == 0x6C40DF5F0B497347);
-    CHECK_MATRIX(crc::crc64_go_iso::compute(algo, test_data) == 0xB90956C775A41001);
-    CHECK_MATRIX(crc::crc64_ms::compute(algo, test_data) == 0x75D4B74F024ECEEA);
-    CHECK_MATRIX(crc::crc64_nvme::compute(algo, test_data) == 0xAE8B14860A799888);
-    CHECK_MATRIX(crc::crc64_redis::compute(algo, test_data) == 0xE9C6D914C4B8D9CA);
-    CHECK_MATRIX(crc::crc64_we::compute(algo, test_data) == 0x62EC59E3F1A4F00A);
-    CHECK_MATRIX(crc::crc64_xz::compute(algo, test_data) == 0x995DC9BBDF1939FA);
-    // CHECK_MATRIX(crc::crc82_darc::compute(algo, test_data) == std::bitset<82>{"000010011110101010000011111101100010010100000010001110000000000111111101011000010010");
+    CHECK_MATRIX(zcrc::crc3_gsm::compute(algo, test_data) == 0x4);
+    CHECK_MATRIX(zcrc::crc3_rohc::compute(algo, test_data) == 0x6);
+    CHECK_MATRIX(zcrc::crc4_g_704::compute(algo, test_data) == 0x7);
+    CHECK_MATRIX(zcrc::crc4_interlaken::compute(algo, test_data) == 0xB);
+    CHECK_MATRIX(zcrc::crc5_epc_c1g2::compute(algo, test_data) == 0x00);
+    CHECK_MATRIX(zcrc::crc5_g_704::compute(algo, test_data) == 0x07);
+    CHECK_MATRIX(zcrc::crc5_usb::compute(algo, test_data) == 0x19);
+    CHECK_MATRIX(zcrc::crc6_cdma2000_a::compute(algo, test_data) == 0x0D);
+    CHECK_MATRIX(zcrc::crc6_cdma2000_b::compute(algo, test_data) == 0x3B);
+    CHECK_MATRIX(zcrc::crc6_darc::compute(algo, test_data) == 0x26);
+    CHECK_MATRIX(zcrc::crc6_g_704::compute(algo, test_data) == 0x06);
+    CHECK_MATRIX(zcrc::crc6_gsm::compute(algo, test_data) == 0x13);
+    CHECK_MATRIX(zcrc::crc7_mmc::compute(algo, test_data) == 0x75);
+    CHECK_MATRIX(zcrc::crc7_rohc::compute(algo, test_data) == 0x53);
+    CHECK_MATRIX(zcrc::crc7_umts::compute(algo, test_data) == 0x61);
+    CHECK_MATRIX(zcrc::crc8_autosar::compute(algo, test_data) == 0xDF);
+    CHECK_MATRIX(zcrc::crc8_bluetooth::compute(algo, test_data) == 0x26);
+    CHECK_MATRIX(zcrc::crc8_cdma2000::compute(algo, test_data) == 0xDA);
+    CHECK_MATRIX(zcrc::crc8_darc::compute(algo, test_data) == 0x15);
+    CHECK_MATRIX(zcrc::crc8_dvb_s2::compute(algo, test_data) == 0xBC);
+    CHECK_MATRIX(zcrc::crc8_gsm_a::compute(algo, test_data) == 0x37);
+    CHECK_MATRIX(zcrc::crc8_gsm_b::compute(algo, test_data) == 0x94);
+    CHECK_MATRIX(zcrc::crc8_hitag::compute(algo, test_data) == 0xB4);
+    CHECK_MATRIX(zcrc::crc8_i_432_1::compute(algo, test_data) == 0xA1);
+    CHECK_MATRIX(zcrc::crc8_i_code::compute(algo, test_data) == 0x7E);
+    CHECK_MATRIX(zcrc::crc8_lte::compute(algo, test_data) == 0xEA);
+    CHECK_MATRIX(zcrc::crc8_maxim_dow::compute(algo, test_data) == 0xA1);
+    CHECK_MATRIX(zcrc::crc8_mifare_mad::compute(algo, test_data) == 0x99);
+    CHECK_MATRIX(zcrc::crc8_nrsc_5::compute(algo, test_data) == 0xF7);
+    CHECK_MATRIX(zcrc::crc8_opensafety::compute(algo, test_data) == 0x3E);
+    CHECK_MATRIX(zcrc::crc8_rohc::compute(algo, test_data) == 0xD0);
+    CHECK_MATRIX(zcrc::crc8_sae_j1850::compute(algo, test_data) == 0x4B);
+    CHECK_MATRIX(zcrc::crc8_smbus::compute(algo, test_data) == 0xF4);
+    CHECK_MATRIX(zcrc::crc8_tech_3250::compute(algo, test_data) == 0x97);
+    CHECK_MATRIX(zcrc::crc8_wcdma::compute(algo, test_data) == 0x25);
+    CHECK_MATRIX(zcrc::crc10_atm::compute(algo, test_data) == 0x199);
+    CHECK_MATRIX(zcrc::crc10_cdma2000::compute(algo, test_data) == 0x233);
+    CHECK_MATRIX(zcrc::crc10_gsm::compute(algo, test_data) == 0x12A);
+    CHECK_MATRIX(zcrc::crc11_flexray::compute(algo, test_data) == 0x5A3);
+    CHECK_MATRIX(zcrc::crc11_umts::compute(algo, test_data) == 0x061);
+    CHECK_MATRIX(zcrc::crc12_cdma2000::compute(algo, test_data) == 0xD4D);
+    CHECK_MATRIX(zcrc::crc12_dect::compute(algo, test_data) == 0xF5B);
+    CHECK_MATRIX(zcrc::crc12_gsm::compute(algo, test_data) == 0xB34);
+    CHECK_MATRIX(zcrc::crc12_umts::compute(algo, test_data) == 0xDAF);
+    CHECK_MATRIX(zcrc::crc13_bbc::compute(algo, test_data) == 0x04FA);
+    CHECK_MATRIX(zcrc::crc14_darc::compute(algo, test_data) == 0x082D);
+    CHECK_MATRIX(zcrc::crc14_gsm::compute(algo, test_data) == 0x30AE);
+    CHECK_MATRIX(zcrc::crc15_can::compute(algo, test_data) == 0x059E);
+    CHECK_MATRIX(zcrc::crc15_mpt1327::compute(algo, test_data) == 0x2566);
+    CHECK_MATRIX(zcrc::crc16_arc::compute(algo, test_data) == 0xBB3D);
+    CHECK_MATRIX(zcrc::crc16_cdma2000::compute(algo, test_data) == 0x4C06);
+    CHECK_MATRIX(zcrc::crc16_cms::compute(algo, test_data) == 0xAEE7);
+    CHECK_MATRIX(zcrc::crc16_dds_110::compute(algo, test_data) == 0x9ECF);
+    CHECK_MATRIX(zcrc::crc16_dect_r::compute(algo, test_data) == 0x007E);
+    CHECK_MATRIX(zcrc::crc16_dect_x::compute(algo, test_data) == 0x007F);
+    CHECK_MATRIX(zcrc::crc16_dnp::compute(algo, test_data) == 0xEA82);
+    CHECK_MATRIX(zcrc::crc16_en_13757::compute(algo, test_data) == 0xC2B7);
+    CHECK_MATRIX(zcrc::crc16_genibus::compute(algo, test_data) == 0xD64E);
+    CHECK_MATRIX(zcrc::crc16_gsm::compute(algo, test_data) == 0xCE3C);
+    CHECK_MATRIX(zcrc::crc16_ibm_3740::compute(algo, test_data) == 0x29B1);
+    CHECK_MATRIX(zcrc::crc16_ibm_sdlc::compute(algo, test_data) == 0x906E);
+    CHECK_MATRIX(zcrc::crc16_iso_iec_14443_3_a::compute(algo, test_data) == 0xBF05);
+    CHECK_MATRIX(zcrc::crc16_kermit::compute(algo, test_data) == 0x2189);
+    CHECK_MATRIX(zcrc::crc16_lj1200::compute(algo, test_data) == 0xBDF4);
+    CHECK_MATRIX(zcrc::crc16_m17::compute(algo, test_data) == 0x772B);
+    CHECK_MATRIX(zcrc::crc16_maxim_dow::compute(algo, test_data) == 0x44C2);
+    CHECK_MATRIX(zcrc::crc16_mcrf4xx::compute(algo, test_data) == 0x6F91);
+    CHECK_MATRIX(zcrc::crc16_modbus::compute(algo, test_data) == 0x4B37);
+    CHECK_MATRIX(zcrc::crc16_nrsc_5::compute(algo, test_data) == 0xA066);
+    CHECK_MATRIX(zcrc::crc16_opensafety_a::compute(algo, test_data) == 0x5D38);
+    CHECK_MATRIX(zcrc::crc16_opensafety_b::compute(algo, test_data) == 0x20FE);
+    CHECK_MATRIX(zcrc::crc16_profibus::compute(algo, test_data) == 0xA819);
+    CHECK_MATRIX(zcrc::crc16_riello::compute(algo, test_data) == 0x63D0);
+    CHECK_MATRIX(zcrc::crc16_spi_fujitsu::compute(algo, test_data) == 0xE5CC);
+    CHECK_MATRIX(zcrc::crc16_t10_dif::compute(algo, test_data) == 0xD0DB);
+    CHECK_MATRIX(zcrc::crc16_teledisk::compute(algo, test_data) == 0x0FB3);
+    CHECK_MATRIX(zcrc::crc16_tms37157::compute(algo, test_data) == 0x26B1);
+    CHECK_MATRIX(zcrc::crc16_umts::compute(algo, test_data) == 0xFEE8);
+    CHECK_MATRIX(zcrc::crc16_usb::compute(algo, test_data) == 0xB4C8);
+    CHECK_MATRIX(zcrc::crc16_xmodem::compute(algo, test_data) == 0x31C3);
+    CHECK_MATRIX(zcrc::crc17_can_fd::compute(algo, test_data) == 0x04F03);
+    CHECK_MATRIX(zcrc::crc21_can_fd::compute(algo, test_data) == 0x0ED841);
+    CHECK_MATRIX(zcrc::crc24_ble::compute(algo, test_data) == 0xC25A56);
+    CHECK_MATRIX(zcrc::crc24_flexray_a::compute(algo, test_data) == 0x7979BD);
+    CHECK_MATRIX(zcrc::crc24_flexray_b::compute(algo, test_data) == 0x1F23B8);
+    CHECK_MATRIX(zcrc::crc24_interlaken::compute(algo, test_data) == 0xB4F3E6);
+    CHECK_MATRIX(zcrc::crc24_lte_a::compute(algo, test_data) == 0xCDE703);
+    CHECK_MATRIX(zcrc::crc24_lte_b::compute(algo, test_data) == 0x23EF52);
+    CHECK_MATRIX(zcrc::crc24_openpgp::compute(algo, test_data) == 0x21CF02);
+    CHECK_MATRIX(zcrc::crc24_os_9::compute(algo, test_data) == 0x200FA5);
+    CHECK_MATRIX(zcrc::crc30_cdma::compute(algo, test_data) == 0x04C34ABF);
+    CHECK_MATRIX(zcrc::crc31_philips::compute(algo, test_data) == 0x0CE9E46C);
+    CHECK_MATRIX(zcrc::crc32_aixm::compute(algo, test_data) == 0x3010BF7F);
+    CHECK_MATRIX(zcrc::crc32_autosar::compute(algo, test_data) == 0x1697D06A);
+    CHECK_MATRIX(zcrc::crc32_base91_d::compute(algo, test_data) == 0x87315576);
+    CHECK_MATRIX(zcrc::crc32::compute(algo, test_data) == 0xFC891918);
+    CHECK_MATRIX(zcrc::crc32_cd_rom_edc::compute(algo, test_data) == 0x6EC2EDC4);
+    CHECK_MATRIX(zcrc::crc32_cksum::compute(algo, test_data) == 0x765E7680);
+    CHECK_MATRIX(zcrc::crc32c::compute(algo, test_data) == 0xE3069283);
+    CHECK_MATRIX(zcrc::crc32_iso_hdlc::compute(algo, test_data) == 0xCBF43926);
+    CHECK_MATRIX(zcrc::crc32_jamcrc::compute(algo, test_data) == 0x340BC6D9);
+    CHECK_MATRIX(zcrc::crc32_mef::compute(algo, test_data) == 0xD2C22F51);
+    CHECK_MATRIX(zcrc::crc32_mpeg2::compute(algo, test_data) == 0x0376E6E7);
+    CHECK_MATRIX(zcrc::crc32_xfer::compute(algo, test_data) == 0xBD0BE338);
+    CHECK_MATRIX(zcrc::crc40_gsm::compute(algo, test_data) == 0xD4164FC646);
+    CHECK_MATRIX(zcrc::crc64_ecma_182::compute(algo, test_data) == 0x6C40DF5F0B497347);
+    CHECK_MATRIX(zcrc::crc64_go_iso::compute(algo, test_data) == 0xB90956C775A41001);
+    CHECK_MATRIX(zcrc::crc64_ms::compute(algo, test_data) == 0x75D4B74F024ECEEA);
+    CHECK_MATRIX(zcrc::crc64_nvme::compute(algo, test_data) == 0xAE8B14860A799888);
+    CHECK_MATRIX(zcrc::crc64_redis::compute(algo, test_data) == 0xE9C6D914C4B8D9CA);
+    CHECK_MATRIX(zcrc::crc64_we::compute(algo, test_data) == 0x62EC59E3F1A4F00A);
+    CHECK_MATRIX(zcrc::crc64_xz::compute(algo, test_data) == 0x995DC9BBDF1939FA);
+    // CHECK_MATRIX(zcrc::crc82_darc::compute(algo, test_data) == std::bitset<82>{"000010011110101010000011111101100010010100000010001110000000000111111101011000010010");
 
     static constexpr auto test_data_noncontiguous {"123456789"sv | std::views::transform([] (const char c) {
         return c;
@@ -173,127 +173,127 @@ TEMPLATE_TEST_CASE("basic functionality checks", HEADER_OR_MODULE_TAG,
     static_assert(std::ranges::random_access_range<decltype(test_data_noncontiguous)>);
     static_assert(!std::ranges::contiguous_range<decltype(test_data_noncontiguous)>);
 
-    CHECK_MATRIX(crc::crc3_gsm::compute(algo, test_data_noncontiguous) == 0x4);
-    CHECK_MATRIX(crc::crc3_rohc::compute(algo, test_data_noncontiguous) == 0x6);
-    CHECK_MATRIX(crc::crc4_g_704::compute(algo, test_data_noncontiguous) == 0x7);
-    CHECK_MATRIX(crc::crc4_interlaken::compute(algo, test_data_noncontiguous) == 0xB);
-    CHECK_MATRIX(crc::crc5_epc_c1g2::compute(algo, test_data_noncontiguous) == 0x00);
-    CHECK_MATRIX(crc::crc5_g_704::compute(algo, test_data_noncontiguous) == 0x07);
-    CHECK_MATRIX(crc::crc5_usb::compute(algo, test_data_noncontiguous) == 0x19);
-    CHECK_MATRIX(crc::crc6_cdma2000_a::compute(algo, test_data_noncontiguous) == 0x0D);
-    CHECK_MATRIX(crc::crc6_cdma2000_b::compute(algo, test_data_noncontiguous) == 0x3B);
-    CHECK_MATRIX(crc::crc6_darc::compute(algo, test_data_noncontiguous) == 0x26);
-    CHECK_MATRIX(crc::crc6_g_704::compute(algo, test_data_noncontiguous) == 0x06);
-    CHECK_MATRIX(crc::crc6_gsm::compute(algo, test_data_noncontiguous) == 0x13);
-    CHECK_MATRIX(crc::crc7_mmc::compute(algo, test_data_noncontiguous) == 0x75);
-    CHECK_MATRIX(crc::crc7_rohc::compute(algo, test_data_noncontiguous) == 0x53);
-    CHECK_MATRIX(crc::crc7_umts::compute(algo, test_data_noncontiguous) == 0x61);
-    CHECK_MATRIX(crc::crc8_autosar::compute(algo, test_data_noncontiguous) == 0xDF);
-    CHECK_MATRIX(crc::crc8_bluetooth::compute(algo, test_data_noncontiguous) == 0x26);
-    CHECK_MATRIX(crc::crc8_cdma2000::compute(algo, test_data_noncontiguous) == 0xDA);
-    CHECK_MATRIX(crc::crc8_darc::compute(algo, test_data_noncontiguous) == 0x15);
-    CHECK_MATRIX(crc::crc8_dvb_s2::compute(algo, test_data_noncontiguous) == 0xBC);
-    CHECK_MATRIX(crc::crc8_gsm_a::compute(algo, test_data_noncontiguous) == 0x37);
-    CHECK_MATRIX(crc::crc8_gsm_b::compute(algo, test_data_noncontiguous) == 0x94);
-    CHECK_MATRIX(crc::crc8_hitag::compute(algo, test_data_noncontiguous) == 0xB4);
-    CHECK_MATRIX(crc::crc8_i_432_1::compute(algo, test_data_noncontiguous) == 0xA1);
-    CHECK_MATRIX(crc::crc8_i_code::compute(algo, test_data_noncontiguous) == 0x7E);
-    CHECK_MATRIX(crc::crc8_lte::compute(algo, test_data_noncontiguous) == 0xEA);
-    CHECK_MATRIX(crc::crc8_maxim_dow::compute(algo, test_data_noncontiguous) == 0xA1);
-    CHECK_MATRIX(crc::crc8_mifare_mad::compute(algo, test_data_noncontiguous) == 0x99);
-    CHECK_MATRIX(crc::crc8_nrsc_5::compute(algo, test_data_noncontiguous) == 0xF7);
-    CHECK_MATRIX(crc::crc8_opensafety::compute(algo, test_data_noncontiguous) == 0x3E);
-    CHECK_MATRIX(crc::crc8_rohc::compute(algo, test_data_noncontiguous) == 0xD0);
-    CHECK_MATRIX(crc::crc8_sae_j1850::compute(algo, test_data_noncontiguous) == 0x4B);
-    CHECK_MATRIX(crc::crc8_smbus::compute(algo, test_data_noncontiguous) == 0xF4);
-    CHECK_MATRIX(crc::crc8_tech_3250::compute(algo, test_data_noncontiguous) == 0x97);
-    CHECK_MATRIX(crc::crc8_wcdma::compute(algo, test_data_noncontiguous) == 0x25);
-    CHECK_MATRIX(crc::crc10_atm::compute(algo, test_data_noncontiguous) == 0x199);
-    CHECK_MATRIX(crc::crc10_cdma2000::compute(algo, test_data_noncontiguous) == 0x233);
-    CHECK_MATRIX(crc::crc10_gsm::compute(algo, test_data_noncontiguous) == 0x12A);
-    CHECK_MATRIX(crc::crc11_flexray::compute(algo, test_data_noncontiguous) == 0x5A3);
-    CHECK_MATRIX(crc::crc11_umts::compute(algo, test_data_noncontiguous) == 0x061);
-    CHECK_MATRIX(crc::crc12_cdma2000::compute(algo, test_data_noncontiguous) == 0xD4D);
-    CHECK_MATRIX(crc::crc12_dect::compute(algo, test_data_noncontiguous) == 0xF5B);
-    CHECK_MATRIX(crc::crc12_gsm::compute(algo, test_data_noncontiguous) == 0xB34);
-    CHECK_MATRIX(crc::crc12_umts::compute(algo, test_data_noncontiguous) == 0xDAF);
-    CHECK_MATRIX(crc::crc13_bbc::compute(algo, test_data_noncontiguous) == 0x04FA);
-    CHECK_MATRIX(crc::crc14_darc::compute(algo, test_data_noncontiguous) == 0x082D);
-    CHECK_MATRIX(crc::crc14_gsm::compute(algo, test_data_noncontiguous) == 0x30AE);
-    CHECK_MATRIX(crc::crc15_can::compute(algo, test_data_noncontiguous) == 0x059E);
-    CHECK_MATRIX(crc::crc15_mpt1327::compute(algo, test_data_noncontiguous) == 0x2566);
-    CHECK_MATRIX(crc::crc16_arc::compute(algo, test_data_noncontiguous) == 0xBB3D);
-    CHECK_MATRIX(crc::crc16_cdma2000::compute(algo, test_data_noncontiguous) == 0x4C06);
-    CHECK_MATRIX(crc::crc16_cms::compute(algo, test_data_noncontiguous) == 0xAEE7);
-    CHECK_MATRIX(crc::crc16_dds_110::compute(algo, test_data_noncontiguous) == 0x9ECF);
-    CHECK_MATRIX(crc::crc16_dect_r::compute(algo, test_data_noncontiguous) == 0x007E);
-    CHECK_MATRIX(crc::crc16_dect_x::compute(algo, test_data_noncontiguous) == 0x007F);
-    CHECK_MATRIX(crc::crc16_dnp::compute(algo, test_data_noncontiguous) == 0xEA82);
-    CHECK_MATRIX(crc::crc16_en_13757::compute(algo, test_data_noncontiguous) == 0xC2B7);
-    CHECK_MATRIX(crc::crc16_genibus::compute(algo, test_data_noncontiguous) == 0xD64E);
-    CHECK_MATRIX(crc::crc16_gsm::compute(algo, test_data_noncontiguous) == 0xCE3C);
-    CHECK_MATRIX(crc::crc16_ibm_3740::compute(algo, test_data_noncontiguous) == 0x29B1);
-    CHECK_MATRIX(crc::crc16_ibm_sdlc::compute(algo, test_data_noncontiguous) == 0x906E);
-    CHECK_MATRIX(crc::crc16_iso_iec_14443_3_a::compute(algo, test_data_noncontiguous) == 0xBF05);
-    CHECK_MATRIX(crc::crc16_kermit::compute(algo, test_data_noncontiguous) == 0x2189);
-    CHECK_MATRIX(crc::crc16_lj1200::compute(algo, test_data_noncontiguous) == 0xBDF4);
-    CHECK_MATRIX(crc::crc16_m17::compute(algo, test_data_noncontiguous) == 0x772B);
-    CHECK_MATRIX(crc::crc16_maxim_dow::compute(algo, test_data_noncontiguous) == 0x44C2);
-    CHECK_MATRIX(crc::crc16_mcrf4xx::compute(algo, test_data_noncontiguous) == 0x6F91);
-    CHECK_MATRIX(crc::crc16_modbus::compute(algo, test_data_noncontiguous) == 0x4B37);
-    CHECK_MATRIX(crc::crc16_nrsc_5::compute(algo, test_data_noncontiguous) == 0xA066);
-    CHECK_MATRIX(crc::crc16_opensafety_a::compute(algo, test_data_noncontiguous) == 0x5D38);
-    CHECK_MATRIX(crc::crc16_opensafety_b::compute(algo, test_data_noncontiguous) == 0x20FE);
-    CHECK_MATRIX(crc::crc16_profibus::compute(algo, test_data_noncontiguous) == 0xA819);
-    CHECK_MATRIX(crc::crc16_riello::compute(algo, test_data_noncontiguous) == 0x63D0);
-    CHECK_MATRIX(crc::crc16_spi_fujitsu::compute(algo, test_data_noncontiguous) == 0xE5CC);
-    CHECK_MATRIX(crc::crc16_t10_dif::compute(algo, test_data_noncontiguous) == 0xD0DB);
-    CHECK_MATRIX(crc::crc16_teledisk::compute(algo, test_data_noncontiguous) == 0x0FB3);
-    CHECK_MATRIX(crc::crc16_tms37157::compute(algo, test_data_noncontiguous) == 0x26B1);
-    CHECK_MATRIX(crc::crc16_umts::compute(algo, test_data_noncontiguous) == 0xFEE8);
-    CHECK_MATRIX(crc::crc16_usb::compute(algo, test_data_noncontiguous) == 0xB4C8);
-    CHECK_MATRIX(crc::crc16_xmodem::compute(algo, test_data_noncontiguous) == 0x31C3);
-    CHECK_MATRIX(crc::crc17_can_fd::compute(algo, test_data_noncontiguous) == 0x04F03);
-    CHECK_MATRIX(crc::crc21_can_fd::compute(algo, test_data_noncontiguous) == 0x0ED841);
-    CHECK_MATRIX(crc::crc24_ble::compute(algo, test_data_noncontiguous) == 0xC25A56);
-    CHECK_MATRIX(crc::crc24_flexray_a::compute(algo, test_data_noncontiguous) == 0x7979BD);
-    CHECK_MATRIX(crc::crc24_flexray_b::compute(algo, test_data_noncontiguous) == 0x1F23B8);
-    CHECK_MATRIX(crc::crc24_interlaken::compute(algo, test_data_noncontiguous) == 0xB4F3E6);
-    CHECK_MATRIX(crc::crc24_lte_a::compute(algo, test_data_noncontiguous) == 0xCDE703);
-    CHECK_MATRIX(crc::crc24_lte_b::compute(algo, test_data_noncontiguous) == 0x23EF52);
-    CHECK_MATRIX(crc::crc24_openpgp::compute(algo, test_data_noncontiguous) == 0x21CF02);
-    CHECK_MATRIX(crc::crc24_os_9::compute(algo, test_data_noncontiguous) == 0x200FA5);
-    CHECK_MATRIX(crc::crc30_cdma::compute(algo, test_data_noncontiguous) == 0x04C34ABF);
-    CHECK_MATRIX(crc::crc31_philips::compute(algo, test_data_noncontiguous) == 0x0CE9E46C);
-    CHECK_MATRIX(crc::crc32_aixm::compute(algo, test_data_noncontiguous) == 0x3010BF7F);
-    CHECK_MATRIX(crc::crc32_autosar::compute(algo, test_data_noncontiguous) == 0x1697D06A);
-    CHECK_MATRIX(crc::crc32_base91_d::compute(algo, test_data_noncontiguous) == 0x87315576);
-    CHECK_MATRIX(crc::crc32::compute(algo, test_data_noncontiguous) == 0xFC891918);
-    CHECK_MATRIX(crc::crc32_cd_rom_edc::compute(algo, test_data_noncontiguous) == 0x6EC2EDC4);
-    CHECK_MATRIX(crc::crc32_cksum::compute(algo, test_data_noncontiguous) == 0x765E7680);
-    CHECK_MATRIX(crc::crc32c::compute(algo, test_data_noncontiguous) == 0xE3069283);
-    CHECK_MATRIX(crc::crc32_iso_hdlc::compute(algo, test_data_noncontiguous) == 0xCBF43926);
-    CHECK_MATRIX(crc::crc32_jamcrc::compute(algo, test_data_noncontiguous) == 0x340BC6D9);
-    CHECK_MATRIX(crc::crc32_mef::compute(algo, test_data_noncontiguous) == 0xD2C22F51);
-    CHECK_MATRIX(crc::crc32_mpeg2::compute(algo, test_data_noncontiguous) == 0x0376E6E7);
-    CHECK_MATRIX(crc::crc32_xfer::compute(algo, test_data_noncontiguous) == 0xBD0BE338);
-    CHECK_MATRIX(crc::crc40_gsm::compute(algo, test_data_noncontiguous) == 0xD4164FC646);
-    CHECK_MATRIX(crc::crc64_ecma_182::compute(algo, test_data_noncontiguous) == 0x6C40DF5F0B497347);
-    CHECK_MATRIX(crc::crc64_go_iso::compute(algo, test_data_noncontiguous) == 0xB90956C775A41001);
-    CHECK_MATRIX(crc::crc64_ms::compute(algo, test_data_noncontiguous) == 0x75D4B74F024ECEEA);
-    CHECK_MATRIX(crc::crc64_nvme::compute(algo, test_data_noncontiguous) == 0xAE8B14860A799888);
-    CHECK_MATRIX(crc::crc64_redis::compute(algo, test_data_noncontiguous) == 0xE9C6D914C4B8D9CA);
-    CHECK_MATRIX(crc::crc64_we::compute(algo, test_data_noncontiguous) == 0x62EC59E3F1A4F00A);
-    CHECK_MATRIX(crc::crc64_xz::compute(algo, test_data_noncontiguous) == 0x995DC9BBDF1939FA);
-    // CHECK_MATRIX(crc::crc82_darc::compute(algo, test_data_noncontiguous) == std::bitset<82>{"000010011110101010000011111101100010010100000010001110000000000111111101011000010010");
+    CHECK_MATRIX(zcrc::crc3_gsm::compute(algo, test_data_noncontiguous) == 0x4);
+    CHECK_MATRIX(zcrc::crc3_rohc::compute(algo, test_data_noncontiguous) == 0x6);
+    CHECK_MATRIX(zcrc::crc4_g_704::compute(algo, test_data_noncontiguous) == 0x7);
+    CHECK_MATRIX(zcrc::crc4_interlaken::compute(algo, test_data_noncontiguous) == 0xB);
+    CHECK_MATRIX(zcrc::crc5_epc_c1g2::compute(algo, test_data_noncontiguous) == 0x00);
+    CHECK_MATRIX(zcrc::crc5_g_704::compute(algo, test_data_noncontiguous) == 0x07);
+    CHECK_MATRIX(zcrc::crc5_usb::compute(algo, test_data_noncontiguous) == 0x19);
+    CHECK_MATRIX(zcrc::crc6_cdma2000_a::compute(algo, test_data_noncontiguous) == 0x0D);
+    CHECK_MATRIX(zcrc::crc6_cdma2000_b::compute(algo, test_data_noncontiguous) == 0x3B);
+    CHECK_MATRIX(zcrc::crc6_darc::compute(algo, test_data_noncontiguous) == 0x26);
+    CHECK_MATRIX(zcrc::crc6_g_704::compute(algo, test_data_noncontiguous) == 0x06);
+    CHECK_MATRIX(zcrc::crc6_gsm::compute(algo, test_data_noncontiguous) == 0x13);
+    CHECK_MATRIX(zcrc::crc7_mmc::compute(algo, test_data_noncontiguous) == 0x75);
+    CHECK_MATRIX(zcrc::crc7_rohc::compute(algo, test_data_noncontiguous) == 0x53);
+    CHECK_MATRIX(zcrc::crc7_umts::compute(algo, test_data_noncontiguous) == 0x61);
+    CHECK_MATRIX(zcrc::crc8_autosar::compute(algo, test_data_noncontiguous) == 0xDF);
+    CHECK_MATRIX(zcrc::crc8_bluetooth::compute(algo, test_data_noncontiguous) == 0x26);
+    CHECK_MATRIX(zcrc::crc8_cdma2000::compute(algo, test_data_noncontiguous) == 0xDA);
+    CHECK_MATRIX(zcrc::crc8_darc::compute(algo, test_data_noncontiguous) == 0x15);
+    CHECK_MATRIX(zcrc::crc8_dvb_s2::compute(algo, test_data_noncontiguous) == 0xBC);
+    CHECK_MATRIX(zcrc::crc8_gsm_a::compute(algo, test_data_noncontiguous) == 0x37);
+    CHECK_MATRIX(zcrc::crc8_gsm_b::compute(algo, test_data_noncontiguous) == 0x94);
+    CHECK_MATRIX(zcrc::crc8_hitag::compute(algo, test_data_noncontiguous) == 0xB4);
+    CHECK_MATRIX(zcrc::crc8_i_432_1::compute(algo, test_data_noncontiguous) == 0xA1);
+    CHECK_MATRIX(zcrc::crc8_i_code::compute(algo, test_data_noncontiguous) == 0x7E);
+    CHECK_MATRIX(zcrc::crc8_lte::compute(algo, test_data_noncontiguous) == 0xEA);
+    CHECK_MATRIX(zcrc::crc8_maxim_dow::compute(algo, test_data_noncontiguous) == 0xA1);
+    CHECK_MATRIX(zcrc::crc8_mifare_mad::compute(algo, test_data_noncontiguous) == 0x99);
+    CHECK_MATRIX(zcrc::crc8_nrsc_5::compute(algo, test_data_noncontiguous) == 0xF7);
+    CHECK_MATRIX(zcrc::crc8_opensafety::compute(algo, test_data_noncontiguous) == 0x3E);
+    CHECK_MATRIX(zcrc::crc8_rohc::compute(algo, test_data_noncontiguous) == 0xD0);
+    CHECK_MATRIX(zcrc::crc8_sae_j1850::compute(algo, test_data_noncontiguous) == 0x4B);
+    CHECK_MATRIX(zcrc::crc8_smbus::compute(algo, test_data_noncontiguous) == 0xF4);
+    CHECK_MATRIX(zcrc::crc8_tech_3250::compute(algo, test_data_noncontiguous) == 0x97);
+    CHECK_MATRIX(zcrc::crc8_wcdma::compute(algo, test_data_noncontiguous) == 0x25);
+    CHECK_MATRIX(zcrc::crc10_atm::compute(algo, test_data_noncontiguous) == 0x199);
+    CHECK_MATRIX(zcrc::crc10_cdma2000::compute(algo, test_data_noncontiguous) == 0x233);
+    CHECK_MATRIX(zcrc::crc10_gsm::compute(algo, test_data_noncontiguous) == 0x12A);
+    CHECK_MATRIX(zcrc::crc11_flexray::compute(algo, test_data_noncontiguous) == 0x5A3);
+    CHECK_MATRIX(zcrc::crc11_umts::compute(algo, test_data_noncontiguous) == 0x061);
+    CHECK_MATRIX(zcrc::crc12_cdma2000::compute(algo, test_data_noncontiguous) == 0xD4D);
+    CHECK_MATRIX(zcrc::crc12_dect::compute(algo, test_data_noncontiguous) == 0xF5B);
+    CHECK_MATRIX(zcrc::crc12_gsm::compute(algo, test_data_noncontiguous) == 0xB34);
+    CHECK_MATRIX(zcrc::crc12_umts::compute(algo, test_data_noncontiguous) == 0xDAF);
+    CHECK_MATRIX(zcrc::crc13_bbc::compute(algo, test_data_noncontiguous) == 0x04FA);
+    CHECK_MATRIX(zcrc::crc14_darc::compute(algo, test_data_noncontiguous) == 0x082D);
+    CHECK_MATRIX(zcrc::crc14_gsm::compute(algo, test_data_noncontiguous) == 0x30AE);
+    CHECK_MATRIX(zcrc::crc15_can::compute(algo, test_data_noncontiguous) == 0x059E);
+    CHECK_MATRIX(zcrc::crc15_mpt1327::compute(algo, test_data_noncontiguous) == 0x2566);
+    CHECK_MATRIX(zcrc::crc16_arc::compute(algo, test_data_noncontiguous) == 0xBB3D);
+    CHECK_MATRIX(zcrc::crc16_cdma2000::compute(algo, test_data_noncontiguous) == 0x4C06);
+    CHECK_MATRIX(zcrc::crc16_cms::compute(algo, test_data_noncontiguous) == 0xAEE7);
+    CHECK_MATRIX(zcrc::crc16_dds_110::compute(algo, test_data_noncontiguous) == 0x9ECF);
+    CHECK_MATRIX(zcrc::crc16_dect_r::compute(algo, test_data_noncontiguous) == 0x007E);
+    CHECK_MATRIX(zcrc::crc16_dect_x::compute(algo, test_data_noncontiguous) == 0x007F);
+    CHECK_MATRIX(zcrc::crc16_dnp::compute(algo, test_data_noncontiguous) == 0xEA82);
+    CHECK_MATRIX(zcrc::crc16_en_13757::compute(algo, test_data_noncontiguous) == 0xC2B7);
+    CHECK_MATRIX(zcrc::crc16_genibus::compute(algo, test_data_noncontiguous) == 0xD64E);
+    CHECK_MATRIX(zcrc::crc16_gsm::compute(algo, test_data_noncontiguous) == 0xCE3C);
+    CHECK_MATRIX(zcrc::crc16_ibm_3740::compute(algo, test_data_noncontiguous) == 0x29B1);
+    CHECK_MATRIX(zcrc::crc16_ibm_sdlc::compute(algo, test_data_noncontiguous) == 0x906E);
+    CHECK_MATRIX(zcrc::crc16_iso_iec_14443_3_a::compute(algo, test_data_noncontiguous) == 0xBF05);
+    CHECK_MATRIX(zcrc::crc16_kermit::compute(algo, test_data_noncontiguous) == 0x2189);
+    CHECK_MATRIX(zcrc::crc16_lj1200::compute(algo, test_data_noncontiguous) == 0xBDF4);
+    CHECK_MATRIX(zcrc::crc16_m17::compute(algo, test_data_noncontiguous) == 0x772B);
+    CHECK_MATRIX(zcrc::crc16_maxim_dow::compute(algo, test_data_noncontiguous) == 0x44C2);
+    CHECK_MATRIX(zcrc::crc16_mcrf4xx::compute(algo, test_data_noncontiguous) == 0x6F91);
+    CHECK_MATRIX(zcrc::crc16_modbus::compute(algo, test_data_noncontiguous) == 0x4B37);
+    CHECK_MATRIX(zcrc::crc16_nrsc_5::compute(algo, test_data_noncontiguous) == 0xA066);
+    CHECK_MATRIX(zcrc::crc16_opensafety_a::compute(algo, test_data_noncontiguous) == 0x5D38);
+    CHECK_MATRIX(zcrc::crc16_opensafety_b::compute(algo, test_data_noncontiguous) == 0x20FE);
+    CHECK_MATRIX(zcrc::crc16_profibus::compute(algo, test_data_noncontiguous) == 0xA819);
+    CHECK_MATRIX(zcrc::crc16_riello::compute(algo, test_data_noncontiguous) == 0x63D0);
+    CHECK_MATRIX(zcrc::crc16_spi_fujitsu::compute(algo, test_data_noncontiguous) == 0xE5CC);
+    CHECK_MATRIX(zcrc::crc16_t10_dif::compute(algo, test_data_noncontiguous) == 0xD0DB);
+    CHECK_MATRIX(zcrc::crc16_teledisk::compute(algo, test_data_noncontiguous) == 0x0FB3);
+    CHECK_MATRIX(zcrc::crc16_tms37157::compute(algo, test_data_noncontiguous) == 0x26B1);
+    CHECK_MATRIX(zcrc::crc16_umts::compute(algo, test_data_noncontiguous) == 0xFEE8);
+    CHECK_MATRIX(zcrc::crc16_usb::compute(algo, test_data_noncontiguous) == 0xB4C8);
+    CHECK_MATRIX(zcrc::crc16_xmodem::compute(algo, test_data_noncontiguous) == 0x31C3);
+    CHECK_MATRIX(zcrc::crc17_can_fd::compute(algo, test_data_noncontiguous) == 0x04F03);
+    CHECK_MATRIX(zcrc::crc21_can_fd::compute(algo, test_data_noncontiguous) == 0x0ED841);
+    CHECK_MATRIX(zcrc::crc24_ble::compute(algo, test_data_noncontiguous) == 0xC25A56);
+    CHECK_MATRIX(zcrc::crc24_flexray_a::compute(algo, test_data_noncontiguous) == 0x7979BD);
+    CHECK_MATRIX(zcrc::crc24_flexray_b::compute(algo, test_data_noncontiguous) == 0x1F23B8);
+    CHECK_MATRIX(zcrc::crc24_interlaken::compute(algo, test_data_noncontiguous) == 0xB4F3E6);
+    CHECK_MATRIX(zcrc::crc24_lte_a::compute(algo, test_data_noncontiguous) == 0xCDE703);
+    CHECK_MATRIX(zcrc::crc24_lte_b::compute(algo, test_data_noncontiguous) == 0x23EF52);
+    CHECK_MATRIX(zcrc::crc24_openpgp::compute(algo, test_data_noncontiguous) == 0x21CF02);
+    CHECK_MATRIX(zcrc::crc24_os_9::compute(algo, test_data_noncontiguous) == 0x200FA5);
+    CHECK_MATRIX(zcrc::crc30_cdma::compute(algo, test_data_noncontiguous) == 0x04C34ABF);
+    CHECK_MATRIX(zcrc::crc31_philips::compute(algo, test_data_noncontiguous) == 0x0CE9E46C);
+    CHECK_MATRIX(zcrc::crc32_aixm::compute(algo, test_data_noncontiguous) == 0x3010BF7F);
+    CHECK_MATRIX(zcrc::crc32_autosar::compute(algo, test_data_noncontiguous) == 0x1697D06A);
+    CHECK_MATRIX(zcrc::crc32_base91_d::compute(algo, test_data_noncontiguous) == 0x87315576);
+    CHECK_MATRIX(zcrc::crc32::compute(algo, test_data_noncontiguous) == 0xFC891918);
+    CHECK_MATRIX(zcrc::crc32_cd_rom_edc::compute(algo, test_data_noncontiguous) == 0x6EC2EDC4);
+    CHECK_MATRIX(zcrc::crc32_cksum::compute(algo, test_data_noncontiguous) == 0x765E7680);
+    CHECK_MATRIX(zcrc::crc32c::compute(algo, test_data_noncontiguous) == 0xE3069283);
+    CHECK_MATRIX(zcrc::crc32_iso_hdlc::compute(algo, test_data_noncontiguous) == 0xCBF43926);
+    CHECK_MATRIX(zcrc::crc32_jamcrc::compute(algo, test_data_noncontiguous) == 0x340BC6D9);
+    CHECK_MATRIX(zcrc::crc32_mef::compute(algo, test_data_noncontiguous) == 0xD2C22F51);
+    CHECK_MATRIX(zcrc::crc32_mpeg2::compute(algo, test_data_noncontiguous) == 0x0376E6E7);
+    CHECK_MATRIX(zcrc::crc32_xfer::compute(algo, test_data_noncontiguous) == 0xBD0BE338);
+    CHECK_MATRIX(zcrc::crc40_gsm::compute(algo, test_data_noncontiguous) == 0xD4164FC646);
+    CHECK_MATRIX(zcrc::crc64_ecma_182::compute(algo, test_data_noncontiguous) == 0x6C40DF5F0B497347);
+    CHECK_MATRIX(zcrc::crc64_go_iso::compute(algo, test_data_noncontiguous) == 0xB90956C775A41001);
+    CHECK_MATRIX(zcrc::crc64_ms::compute(algo, test_data_noncontiguous) == 0x75D4B74F024ECEEA);
+    CHECK_MATRIX(zcrc::crc64_nvme::compute(algo, test_data_noncontiguous) == 0xAE8B14860A799888);
+    CHECK_MATRIX(zcrc::crc64_redis::compute(algo, test_data_noncontiguous) == 0xE9C6D914C4B8D9CA);
+    CHECK_MATRIX(zcrc::crc64_we::compute(algo, test_data_noncontiguous) == 0x62EC59E3F1A4F00A);
+    CHECK_MATRIX(zcrc::crc64_xz::compute(algo, test_data_noncontiguous) == 0x995DC9BBDF1939FA);
+    // CHECK_MATRIX(zcrc::crc82_darc::compute(algo, test_data_noncontiguous) == std::bitset<82>{"000010011110101010000011111101100010010100000010001110000000000111111101011000010010");
 
     static_assert(!std::ranges::random_access_range<decltype("123456789"sv | std::views::filter([] (char) { return true; }))>);
     static_assert(!std::ranges::sized_range<decltype("123456789"sv | std::views::filter([] (char) { return true; }))>);
 
-    CHECK_MATRIX(crc::crc64_xz::compute(algo, "123456789"sv | std::views::filter([] (char) { return true; })) == 0x995DC9BBDF1939FA);
+    CHECK_MATRIX(zcrc::crc64_xz::compute(algo, "123456789"sv | std::views::filter([] (char) { return true; })) == 0x995DC9BBDF1939FA);
 
     std::stringstream stream {"123456789"};
-    CHECK(crc::crc64_xz::compute(
+    CHECK(zcrc::crc64_xz::compute(
         algo, std::ranges::istream_view<char>{stream}) == 0x995DC9BBDF1939FA);
 
     static constexpr std::array<std::string_view, 4> random_messages {
@@ -304,9 +304,9 @@ TEMPLATE_TEST_CASE("basic functionality checks", HEADER_OR_MODULE_TAG,
     };
 
     CHECK_MATRIX(std::ranges::equal(
-        random_messages | std::views::transform(crc::crc32c::compute),
+        random_messages | std::views::transform(zcrc::crc32c::compute),
         std::views::iota(0U, random_messages.size()) | std::views::transform([&] (const auto i) {
-            return crc::crc32c::compute(random_messages[i]);
+            return zcrc::crc32c::compute(random_messages[i]);
         })
     ));
 
@@ -315,82 +315,82 @@ TEMPLATE_TEST_CASE("basic functionality checks", HEADER_OR_MODULE_TAG,
         {'7', '8', '9'}, {'4', '5', '6'}, {'1', '2', '3'}
     }};
     CHECK_MATRIX(
-        crc::crc32c::compute(algo, test_data) ==
-        crc::finalize(std::ranges::fold_left(noncontiguous_test_data | std::views::reverse, crc::crc32c {}, crc::process))
+        zcrc::crc32c::compute(algo, test_data) ==
+        zcrc::finalize(std::ranges::fold_left(noncontiguous_test_data | std::views::reverse, zcrc::crc32c {}, zcrc::process))
     );
 #endif
 }
 
 TEST_CASE("equality comparison", HEADER_OR_MODULE_TAG) {
-    CHECK_MATRIX(crc::crc10_atm {} == crc::crc10_atm {});
-    CHECK_MATRIX(!(crc::crc10_atm {} != crc::crc10_atm {}));
+    CHECK_MATRIX(zcrc::crc10_atm {} == zcrc::crc10_atm {});
+    CHECK_MATRIX(!(zcrc::crc10_atm {} != zcrc::crc10_atm {}));
 
-    CHECK_MATRIX(crc::crc10_atm {} == crc::process(crc::crc10_atm {}, "\0\0\0\0\0"sv));
+    CHECK_MATRIX(zcrc::crc10_atm {} == zcrc::process(zcrc::crc10_atm {}, "\0\0\0\0\0"sv));
 
     // The LHS message is just zeroes, and the RHS message is the CRC10-ATM generator
     // polynomial, 0x633. They produce the same checksums, but different garbage bits at the
     // top of the shift register, so this test ensures that operator== ignores those bits.
     CHECK_MATRIX(
-        crc::process(crc::slice_by<1>, crc::crc10_atm {}, "\x00\x00"sv) ==
-        crc::process(crc::slice_by<1>, crc::crc10_atm {}, "\x06\x33"sv)
+        zcrc::process(zcrc::slice_by<1>, zcrc::crc10_atm {}, "\x00\x00"sv) ==
+        zcrc::process(zcrc::slice_by<1>, zcrc::crc10_atm {}, "\x06\x33"sv)
     );
 
     // This is just the example from the README.
     CHECK_MATRIX([] {
-        crc::crc64_xz crc {};
+        zcrc::crc64_xz crc {};
 
-        crc = crc::process(crc, "Some data"sv);
-        crc = crc::process(crc, u8" processed in "sv);
-        crc = crc::process(crc, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
+        crc = zcrc::process(crc, "Some data"sv);
+        crc = zcrc::process(crc, u8" processed in "sv);
+        crc = zcrc::process(crc, std::vector<std::uint8_t> {'p', 'a', 'r', 't', 's'});
 
-        const std::uint64_t result {crc::finalize(crc)};
+        const std::uint64_t result {zcrc::finalize(crc)};
         return result;
-    }() == crc::crc64_xz::compute("Some data processed in parts"sv));
+    }() == zcrc::crc64_xz::compute("Some data processed in parts"sv));
 }
 
 TEST_CASE("is_valid", HEADER_OR_MODULE_TAG) {
-    CHECK_MATRIX(crc::crc32c::is_valid("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x4E\x79\xDD\x46"sv));
-    CHECK_MATRIX(crc::crc16_arc::is_valid("\x33\x22\x55\xAA\xBB\xCC\xDD\xEE\xFF\x98\xAE"sv));
+    CHECK_MATRIX(zcrc::crc32c::is_valid("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F\x4E\x79\xDD\x46"sv));
+    CHECK_MATRIX(zcrc::crc16_arc::is_valid("\x33\x22\x55\xAA\xBB\xCC\xDD\xEE\xFF\x98\xAE"sv));
 }
 
 TEMPLATE_TEST_CASE("process_zero_bytes and parallel", HEADER_OR_MODULE_TAG,
-    crc::crc3_gsm, crc::crc3_rohc, crc::crc4_g_704, crc::crc4_interlaken,
-    crc::crc5_epc_c1g2, crc::crc5_g_704, crc::crc5_usb, crc::crc6_cdma2000_a,
-    crc::crc6_cdma2000_b, crc::crc6_darc, crc::crc6_g_704, crc::crc6_gsm,
-    crc::crc7_mmc, crc::crc7_rohc, crc::crc7_umts, crc::crc8_autosar,
-    crc::crc8_bluetooth, crc::crc8_cdma2000, crc::crc8_darc, crc::crc8_dvb_s2,
-    crc::crc8_gsm_a, crc::crc8_gsm_b, crc::crc8_hitag, crc::crc8_i_432_1,
-    crc::crc8_i_code, crc::crc8_lte, crc::crc8_maxim_dow, crc::crc8_mifare_mad,
-    crc::crc8_nrsc_5, crc::crc8_opensafety, crc::crc8_rohc, crc::crc8_sae_j1850,
-    crc::crc8_smbus, crc::crc8_tech_3250, crc::crc8_wcdma, crc::crc10_atm,
-    crc::crc10_cdma2000, crc::crc10_gsm, crc::crc11_flexray, crc::crc11_umts,
-    crc::crc12_cdma2000, crc::crc12_dect, crc::crc12_gsm, crc::crc12_umts,
-    crc::crc13_bbc, crc::crc14_darc, crc::crc14_gsm, crc::crc15_can,
-    crc::crc15_mpt1327, crc::crc16_arc, crc::crc16_cdma2000, crc::crc16_cms,
-    crc::crc16_dds_110, crc::crc16_dect_r, crc::crc16_dect_x, crc::crc16_dnp,
-    crc::crc16_en_13757, crc::crc16_genibus, crc::crc16_gsm, crc::crc16_ibm_3740,
-    crc::crc16_ibm_sdlc, crc::crc16_iso_iec_14443_3_a, crc::crc16_kermit, crc::crc16_lj1200,
-    crc::crc16_m17, crc::crc16_maxim_dow, crc::crc16_mcrf4xx, crc::crc16_modbus,
-    crc::crc16_nrsc_5, crc::crc16_opensafety_a, crc::crc16_opensafety_b, crc::crc16_profibus,
-    crc::crc16_riello, crc::crc16_spi_fujitsu, crc::crc16_t10_dif, crc::crc16_teledisk,
-    crc::crc16_tms37157, crc::crc16_umts, crc::crc16_usb, crc::crc16_xmodem,
-    crc::crc17_can_fd, crc::crc21_can_fd, crc::crc24_ble, crc::crc24_flexray_a,
-    crc::crc24_flexray_b, crc::crc24_interlaken, crc::crc24_lte_a, crc::crc24_lte_b,
-    crc::crc24_openpgp, crc::crc24_os_9, crc::crc30_cdma, crc::crc31_philips,
-    crc::crc32_aixm, crc::crc32_autosar, crc::crc32_base91_d, crc::crc32,
-    crc::crc32_cd_rom_edc, crc::crc32_cksum, crc::crc32c, crc::crc32_iso_hdlc,
-    crc::crc32_jamcrc, crc::crc32_mef, crc::crc32_mpeg2, crc::crc32_xfer,
-    crc::crc40_gsm, crc::crc64_ecma_182, crc::crc64_go_iso, crc::crc64_ms,
-    crc::crc64_nvme, crc::crc64_redis, crc::crc64_we, crc::crc64_xz
-    // , crc::crc82_darc
+    zcrc::crc3_gsm, zcrc::crc3_rohc, zcrc::crc4_g_704, zcrc::crc4_interlaken,
+    zcrc::crc5_epc_c1g2, zcrc::crc5_g_704, zcrc::crc5_usb, zcrc::crc6_cdma2000_a,
+    zcrc::crc6_cdma2000_b, zcrc::crc6_darc, zcrc::crc6_g_704, zcrc::crc6_gsm,
+    zcrc::crc7_mmc, zcrc::crc7_rohc, zcrc::crc7_umts, zcrc::crc8_autosar,
+    zcrc::crc8_bluetooth, zcrc::crc8_cdma2000, zcrc::crc8_darc, zcrc::crc8_dvb_s2,
+    zcrc::crc8_gsm_a, zcrc::crc8_gsm_b, zcrc::crc8_hitag, zcrc::crc8_i_432_1,
+    zcrc::crc8_i_code, zcrc::crc8_lte, zcrc::crc8_maxim_dow, zcrc::crc8_mifare_mad,
+    zcrc::crc8_nrsc_5, zcrc::crc8_opensafety, zcrc::crc8_rohc, zcrc::crc8_sae_j1850,
+    zcrc::crc8_smbus, zcrc::crc8_tech_3250, zcrc::crc8_wcdma, zcrc::crc10_atm,
+    zcrc::crc10_cdma2000, zcrc::crc10_gsm, zcrc::crc11_flexray, zcrc::crc11_umts,
+    zcrc::crc12_cdma2000, zcrc::crc12_dect, zcrc::crc12_gsm, zcrc::crc12_umts,
+    zcrc::crc13_bbc, zcrc::crc14_darc, zcrc::crc14_gsm, zcrc::crc15_can,
+    zcrc::crc15_mpt1327, zcrc::crc16_arc, zcrc::crc16_cdma2000, zcrc::crc16_cms,
+    zcrc::crc16_dds_110, zcrc::crc16_dect_r, zcrc::crc16_dect_x, zcrc::crc16_dnp,
+    zcrc::crc16_en_13757, zcrc::crc16_genibus, zcrc::crc16_gsm, zcrc::crc16_ibm_3740,
+    zcrc::crc16_ibm_sdlc, zcrc::crc16_iso_iec_14443_3_a, zcrc::crc16_kermit, zcrc::crc16_lj1200,
+    zcrc::crc16_m17, zcrc::crc16_maxim_dow, zcrc::crc16_mcrf4xx, zcrc::crc16_modbus,
+    zcrc::crc16_nrsc_5, zcrc::crc16_opensafety_a, zcrc::crc16_opensafety_b, zcrc::crc16_profibus,
+    zcrc::crc16_riello, zcrc::crc16_spi_fujitsu, zcrc::crc16_t10_dif, zcrc::crc16_teledisk,
+    zcrc::crc16_tms37157, zcrc::crc16_umts, zcrc::crc16_usb, zcrc::crc16_xmodem,
+    zcrc::crc17_can_fd, zcrc::crc21_can_fd, zcrc::crc24_ble, zcrc::crc24_flexray_a,
+    zcrc::crc24_flexray_b, zcrc::crc24_interlaken, zcrc::crc24_lte_a, zcrc::crc24_lte_b,
+    zcrc::crc24_openpgp, zcrc::crc24_os_9, zcrc::crc30_cdma, zcrc::crc31_philips,
+    zcrc::crc32_aixm, zcrc::crc32_autosar, zcrc::crc32_base91_d, zcrc::crc32,
+    zcrc::crc32_cd_rom_edc, zcrc::crc32_cksum, zcrc::crc32c, zcrc::crc32_iso_hdlc,
+    zcrc::crc32_jamcrc, zcrc::crc32_mef, zcrc::crc32_mpeg2, zcrc::crc32_xfer,
+    zcrc::crc40_gsm, zcrc::crc64_ecma_182, zcrc::crc64_go_iso, zcrc::crc64_ms,
+    zcrc::crc64_nvme, zcrc::crc64_redis, zcrc::crc64_we, zcrc::crc64_xz
+    // , zcrc::crc82_darc
 ) {
     // Ensure process_zero_bytes runs in logarithmic time.
-    CHECK_MATRIX(((void)crc::process_zero_bytes(TestType {}, std::numeric_limits<std::size_t>::max()), true));
+    CHECK_MATRIX(((void)zcrc::process_zero_bytes(TestType {}, std::numeric_limits<std::size_t>::max()), true));
 
     []<std::size_t... N>(std::index_sequence<N...>){
         (CHECK_MATRIX(
-            crc::process(crc::slice_by<1>, TestType {}, std::array<std::uint8_t, N> {}) ==
-            crc::process_zero_bytes(TestType {}, N)
+            zcrc::process(zcrc::slice_by<1>, TestType {}, std::array<std::uint8_t, N> {}) ==
+            zcrc::process_zero_bytes(TestType {}, N)
         ), ...);
     }(std::make_index_sequence<8>{});
 
@@ -418,7 +418,7 @@ TEMPLATE_TEST_CASE("process_zero_bytes and parallel", HEADER_OR_MODULE_TAG,
     };
 
     CHECK_MATRIX(
-        crc::process(crc::parallel<crc::slice_by<1>>, TestType {}, long_message) ==
-        crc::process(crc::slice_by<1>, TestType {}, long_message)
+        zcrc::process(zcrc::parallel<zcrc::slice_by<1>>, TestType {}, long_message) ==
+        zcrc::process(zcrc::slice_by<1>, TestType {}, long_message)
     );
 }

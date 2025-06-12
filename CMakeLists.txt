@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.28.2)
 
-project(crc
+project(zcrc
     VERSION 0.1.0
     LANGUAGES CXX
-    DESCRIPTION "A SIMD-accelerated C++ CRC library."
-    HOMEPAGE_URL "https://github.com/LocalSpook/crc"
+    DESCRIPTION "A high-performance C++ CRC library."
+    HOMEPAGE_URL "https://github.com/LocalSpook/zcrc"
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
@@ -13,62 +13,62 @@ include(FetchContent)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
-option(CRC_MODULE "build the library as a module" OFF)
-option(CRC_TEST "build the tests" OFF)
-option(CRC_BENCHMARK "build the benchmarks" OFF)
+option(ZCRC_MODULE "build the library as a module" OFF)
+option(ZCRC_TEST "build the tests" OFF)
+option(ZCRC_BENCHMARK "build the benchmarks" OFF)
 
-add_library(crc INTERFACE)
-add_library(crc::crc ALIAS crc)
-target_sources(crc
+add_library(zcrc INTERFACE)
+add_library(zcrc::zcrc ALIAS zcrc)
+target_sources(zcrc
     INTERFACE FILE_SET HEADERS BASE_DIRS include FILES
-        include/crc/crc.hpp
+        include/zcrc/zcrc.hpp
 )
-target_compile_features(crc INTERFACE cxx_std_20)
+target_compile_features(zcrc INTERFACE cxx_std_20)
 
-if(CRC_MODULE)
-    add_library(crc-module)
-    add_library(crc::crc-module ALIAS crc-module)
-    target_sources(crc-module
+if(ZCRC_MODULE)
+    add_library(zcrc-module)
+    add_library(zcrc::zcrc-module ALIAS zcrc-module)
+    target_sources(zcrc-module
         PUBLIC FILE_SET CXX_MODULES BASE_DIRS src FILES
-            src/crc.cppm
+            src/zcrc.cppm
     )
-    target_link_libraries(crc-module PUBLIC crc)
-    target_compile_features(crc-module PUBLIC cxx_std_20)
+    target_link_libraries(zcrc-module PUBLIC zcrc)
+    target_compile_features(zcrc-module PUBLIC cxx_std_20)
 endif()
 
 install(
-    TARGETS crc
-    EXPORT crc-targets
+    TARGETS zcrc
+    EXPORT zcrc-targets
     PUBLIC_HEADER
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/crc
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zcrc
         FILE_SET HEADERS
 )
 
-write_basic_package_version_file(crc-config-version.cmake
+write_basic_package_version_file(zcrc-config-version.cmake
     COMPATIBILITY SameMajorVersion
     ARCH_INDEPENDENT
 )
 
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/crc-config.cmake [[
-include(${CMAKE_CURRENT_LIST_DIR}/crc-targets.cmake)
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake [[
+include(${CMAKE_CURRENT_LIST_DIR}/zcrc-targets.cmake)
 ]])
 
 install(
 	FILES
-		${CMAKE_CURRENT_BINARY_DIR}/crc-config.cmake
-		${CMAKE_CURRENT_BINARY_DIR}/crc-config-version.cmake
+		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake
+		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config-version.cmake
     DESTINATION
-		${CMAKE_INSTALL_LIBDIR}/cmake/crc
+		${CMAKE_INSTALL_LIBDIR}/cmake/zcrc
 )
 
 install(
-	EXPORT crc-targets
-	FILE crc-targets.cmake
-	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/crc
-	NAMESPACE crc::
+	EXPORT zcrc-targets
+	FILE zcrc-targets.cmake
+	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc
+	NAMESPACE zcrc::
 )
 
-if(CRC_TEST OR CRC_BENCHMARK)
+if(ZCRC_TEST OR ZCRC_BENCHMARK)
     FetchContent_Declare(catch2
         GIT_REPOSITORY https://github.com/catchorg/Catch2
         GIT_TAG v3.7.1
@@ -84,31 +84,31 @@ endif()
 # to skip scanning targets that don't need modules.
 #
 # https://github.com/emscripten-core/emscripten/issues/22305
-function(_crc_disable_module_dependency_scanning target)
+function(_zcrc_disable_module_dependency_scanning target)
     set_target_properties(${target} PROPERTIES CXX_SCAN_FOR_MODULES OFF)
 endfunction()
 
-if(CRC_TEST)
+if(ZCRC_TEST)
     add_executable(tests)
     target_sources(tests PRIVATE test/tests.cpp)
-    target_link_libraries(tests PRIVATE Catch2::Catch2WithMain crc::crc)
-    _crc_disable_module_dependency_scanning(tests)
-    if(CRC_MODULE)
+    target_link_libraries(tests PRIVATE Catch2::Catch2WithMain zcrc::zcrc)
+    _zcrc_disable_module_dependency_scanning(tests)
+    if(ZCRC_MODULE)
         add_library(module-tests OBJECT)
         target_sources(module-tests PRIVATE test/tests.cpp)
-        target_compile_definitions(module-tests PRIVATE CRC_TEST_MODULE)
-        target_link_libraries(module-tests PRIVATE Catch2::Catch2 crc::crc-module)
+        target_compile_definitions(module-tests PRIVATE ZCRC_TEST_MODULE)
+        target_link_libraries(module-tests PRIVATE Catch2::Catch2 zcrc::zcrc-module)
         target_link_libraries(tests PRIVATE module-tests)
     endif()
 endif()
 
-if(CRC_BENCHMARK)
+if(ZCRC_BENCHMARK)
     if(NOT CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
         message(WARNING "Building without optimization; benchmark results will be bogus! (CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}, but should be Release, RelWithDebInfo, or MinSizeRel)")
     endif()
 
     add_executable(benchmarks)
     target_sources(benchmarks PRIVATE benchmark/benchmarks.cpp)
-    target_link_libraries(benchmarks PRIVATE Catch2::Catch2WithMain crc::crc)
-    _crc_disable_module_dependency_scanning(benchmarks)
+    target_link_libraries(benchmarks PRIVATE Catch2::Catch2WithMain zcrc::zcrc)
+    _zcrc_disable_module_dependency_scanning(benchmarks)
 endif()

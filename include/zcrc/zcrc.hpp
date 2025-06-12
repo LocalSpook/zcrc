@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-// Homepage:  https://github.com/LocalSpook/crc
+// Homepage:  https://github.com/LocalSpook/zcrc
 //
 // ────────── Design notes ──────────
 //
@@ -27,13 +27,13 @@
 // To minimize compile times, we prefer plain loops over range algorithms.
 //
 // We provide dozens of predefined CRCs, but the typical user only needs
-// one or two of them. This means that defining a CRC (i.e. instantiating crc::crc)
+// one or two of them. This means that defining a CRC (i.e. instantiating zcrc::crc)
 // must be cheap: specifically, it must NOT eagerly compute lookup tables.
 //
 // The code has been ADL-proofed.
 
-#ifndef CRC_HPP_INCLUDED
-#define CRC_HPP_INCLUDED
+#ifndef ZCRC_HPP_INCLUDED
+#define ZCRC_HPP_INCLUDED
 
 #include <algorithm>
 #include <array>
@@ -53,39 +53,39 @@
 #include <utility>
 
 // This is defined when building as a module.
-#ifndef CRC_JUST_THE_INCLUDES
+#ifndef ZCRC_JUST_THE_INCLUDES
 
 static_assert(std::numeric_limits<unsigned char>::digits == 8,
     "Architectures where bytes are not 8 bits are not supported.");
 static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big,
     "Mixed-endian architectures are not supported.");
 
-#ifdef CRC_EXPORT_SYMBOLS
-#define CRC_EXPORT export
+#ifdef ZCRC_EXPORT_SYMBOLS
+#define ZCRC_EXPORT export
 #else
-#define CRC_EXPORT
+#define ZCRC_EXPORT
 #endif
 
-#define CRC_RETURNS(...)              \
+#define ZCRC_RETURNS(...)             \
     noexcept(noexcept(__VA_ARGS__)) { \
         return __VA_ARGS__;           \
     }
 
 #if __cplusplus >= 202302L && __cpp_static_call_operator >= 202207L
-#define CRC_STATIC_CALL_OPERATOR static
-#define CRC_CONST_CALL_OPERATOR
+#define ZCRC_STATIC_CALL_OPERATOR static
+#define ZCRC_CONST_CALL_OPERATOR
 #else
-#define CRC_STATIC_CALL_OPERATOR
-#define CRC_CONST_CALL_OPERATOR const
+#define ZCRC_STATIC_CALL_OPERATOR
+#define ZCRC_CONST_CALL_OPERATOR const
 #endif
 
 #if __cplusplus >= 202302L && __cpp_constexpr >= 202211L
-#define CRC_STATIC23 static
+#define ZCRC_STATIC23 static
 #else
-#define CRC_STATIC23
+#define ZCRC_STATIC23
 #endif
 
-namespace crc::inline v1 {
+namespace zcrc::inline v1 {
 
 namespace detail {
 
@@ -93,32 +93,32 @@ struct algorithm_base {};
 
 } // namespace detail
 
-CRC_EXPORT template <typename T>
+ZCRC_EXPORT template <typename T>
 concept algorithm = std::derived_from<T, detail::algorithm_base>;
 
-CRC_EXPORT template <std::size_t N>
+ZCRC_EXPORT template <std::size_t N>
 struct slice_by_t : detail::algorithm_base {
     static_assert(N != 0);
     explicit slice_by_t() = default;
 };
 
-CRC_EXPORT template <algorithm A>
+ZCRC_EXPORT template <algorithm A>
 struct parallel_t : detail::algorithm_base {
     explicit parallel_t() = default;
 };
 
-CRC_EXPORT template <typename A>
+ZCRC_EXPORT template <typename A>
 struct parallel_t<parallel_t<A>> : detail::algorithm_base {
-    static_assert(false, "crc::parallel cannot be nested");
+    static_assert(false, "zcrc::parallel cannot be nested");
 };
 
-CRC_EXPORT template <std::size_t N>
+ZCRC_EXPORT template <std::size_t N>
 inline constexpr slice_by_t<N> slice_by {};
 
-CRC_EXPORT template <algorithm auto A>
+ZCRC_EXPORT template <algorithm auto A>
 inline constexpr parallel_t<decltype(A)> parallel {};
 
-CRC_EXPORT inline constexpr slice_by_t<8> default_algorithm {};
+ZCRC_EXPORT inline constexpr slice_by_t<8> default_algorithm {};
 
 namespace detail {
 
@@ -211,7 +211,7 @@ using least_uint =
 
 } // namespace detail
 
-CRC_EXPORT template <
+ZCRC_EXPORT template <
     std::size_t Width,
     detail::least_uint<Width> Poly,
     detail::least_uint<Width> Init,
@@ -225,9 +225,9 @@ namespace detail {
 
 struct combine_fn {
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(crc<Width, Poly, Init, RefIn, RefOut, XOROut> lhs,
-               crc<Width, Poly, Init, RefIn, RefOut, XOROut> rhs) CRC_CONST_CALL_OPERATOR noexcept {
+               crc<Width, Poly, Init, RefIn, RefOut, XOROut> rhs) ZCRC_CONST_CALL_OPERATOR noexcept {
         return lhs.m_crc ^ rhs.m_crc;
     }
 };
@@ -279,8 +279,8 @@ process_zero_bytes_fn_impl(detail::least_uint<Width> state, const std::size_t n)
 
 struct process_zero_bytes_fn {
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> state, const std::size_t n) CRC_CONST_CALL_OPERATOR noexcept {
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> state, const std::size_t n) ZCRC_CONST_CALL_OPERATOR noexcept {
         return detail::process_zero_bytes_fn_impl<Width, Poly, RefIn>(state.m_crc, n);
     }
 };
@@ -324,7 +324,7 @@ template <std::size_t I>
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t N, typename I, typename S>
 [[nodiscard]] constexpr least_uint<Width> process_fn_impl(slice_by_t<N>, least_uint<Width> crc, I it, S end) noexcept {
     const auto fold {[&]<std::size_t... B>(std::index_sequence<B...>) {
-        CRC_STATIC23 constexpr auto& t {detail::tables<Width, Poly, RefIn, N>};
+        ZCRC_STATIC23 constexpr auto& t {detail::tables<Width, Poly, RefIn, N>};
         if constexpr (RefIn) {
             crc = (std::get<sizeof...(B) - B - 1>(t)[
                     (detail::rshift(crc, 8 * B) & 0xFF) ^ static_cast<std::uint8_t>(detail::index<B>(it))]
@@ -421,9 +421,9 @@ process_fn_impl(parallel_t<A>, const least_uint<Width> state, I it, S end) noexc
 struct process_fn {
     // Consider a user program that computes CRCs over several different types:
     //
-    //    crc::crc32c::compute(std::span<char>)
-    //    crc::crc32c::compute(std::span<unsigned char>)
-    //    crc::crc32c::compute(std::span<char8_t>)
+    //    zcrc::crc32c::compute(std::span<char>)
+    //    zcrc::crc32c::compute(std::span<unsigned char>)
+    //    zcrc::crc32c::compute(std::span<char8_t>)
     //
     // These calls all do the exact same thing, but each is a separate template
     // instantiation, so the compiler cannot deduplicate them in the final binary.
@@ -435,9 +435,9 @@ struct process_fn {
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
               std::contiguous_iterator I, std::sized_sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(std::is_constant_evaluated()
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) ZCRC_CONST_CALL_OPERATOR
+        ZCRC_RETURNS(std::is_constant_evaluated()
             ? detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
                 algo, crc.m_crc,
                 std::to_address(it),
@@ -451,37 +451,37 @@ struct process_fn {
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
               std::input_iterator I, std::sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) ZCRC_CONST_CALL_OPERATOR
+        ZCRC_RETURNS(detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
                 algo, crc.m_crc, std::move(it), std::move(end)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
               std::ranges::input_range R>
     requires detail::byte_like<std::ranges::range_value_t<R>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(process_fn::operator()(algo, crc, std::ranges::begin(r), std::ranges::end(r)))
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) ZCRC_CONST_CALL_OPERATOR
+        ZCRC_RETURNS(process_fn::operator()(algo, crc, std::ranges::begin(r), std::ranges::end(r)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
               std::input_iterator I, std::sentinel_for<I> S>
     requires detail::byte_like<std::iter_value_t<I>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I begin, S end) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(process_fn::operator()(default_algorithm, crc, std::move(begin), std::move(end)))
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I begin, S end) ZCRC_CONST_CALL_OPERATOR
+        ZCRC_RETURNS(process_fn::operator()(default_algorithm, crc, std::move(begin), std::move(end)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
               std::ranges::input_range R>
     requires detail::byte_like<std::ranges::range_value_t<R>>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) CRC_CONST_CALL_OPERATOR
-        CRC_RETURNS(process_fn::operator()(crc, std::ranges::begin(r), std::ranges::end(r)))
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
+    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, R&& r) ZCRC_CONST_CALL_OPERATOR
+        ZCRC_RETURNS(process_fn::operator()(crc, std::ranges::begin(r), std::ranges::end(r)))
 };
 
 struct finalize_fn {
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr least_uint<Width>
-    operator()(crc<Width, Poly, Init, RefIn, RefOut, XOROut> state) CRC_CONST_CALL_OPERATOR noexcept {
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr least_uint<Width>
+    operator()(crc<Width, Poly, Init, RefIn, RefOut, XOROut> state) ZCRC_CONST_CALL_OPERATOR noexcept {
         if constexpr (Width < 8 && !RefIn) {
             state.m_crc >>= 8 - Width;
         }
@@ -496,9 +496,9 @@ struct finalize_fn {
 
 struct is_valid_fn {
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut>
-    [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
-    operator()(crc<Width, Poly, Init, RefIn, RefOut, XOROut> state) CRC_CONST_CALL_OPERATOR noexcept {
-        CRC_STATIC23 constexpr least_uint<Width> residue {[] {
+    [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr bool
+    operator()(crc<Width, Poly, Init, RefIn, RefOut, XOROut> state) ZCRC_CONST_CALL_OPERATOR noexcept {
+        ZCRC_STATIC23 constexpr least_uint<Width> residue {[] {
             least_uint<Width> residue_ {XOROut};
 
             for (std::size_t i {0}; i < Width; ++i) {
@@ -522,17 +522,17 @@ struct is_valid_fn {
 
 } // namespace detail
 
-CRC_EXPORT inline constexpr detail::combine_fn combine {};
-CRC_EXPORT inline constexpr detail::process_zero_bytes_fn process_zero_bytes {};
-CRC_EXPORT inline constexpr detail::process_fn process {};
-CRC_EXPORT inline constexpr detail::finalize_fn finalize {};
-CRC_EXPORT inline constexpr detail::is_valid_fn is_valid {};
+ZCRC_EXPORT inline constexpr detail::combine_fn combine {};
+ZCRC_EXPORT inline constexpr detail::process_zero_bytes_fn process_zero_bytes {};
+ZCRC_EXPORT inline constexpr detail::process_fn process {};
+ZCRC_EXPORT inline constexpr detail::finalize_fn finalize {};
+ZCRC_EXPORT inline constexpr detail::is_valid_fn is_valid {};
 
-CRC_EXPORT struct zero_init_t {
+ZCRC_EXPORT struct zero_init_t {
     explicit zero_init_t() = default;
 };
 
-CRC_EXPORT inline constexpr zero_init_t zero_init {};
+ZCRC_EXPORT inline constexpr zero_init_t zero_init {};
 
 template <
     std::size_t Width,
@@ -568,53 +568,53 @@ private:
     struct compute_member_fn {
         template <std::input_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
-        operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(finalize(process(algo, crc {}, std::move(begin), std::move(end))))
+        [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc_type
+        operator()(const algorithm auto algo, I begin, S end) ZCRC_CONST_CALL_OPERATOR
+            ZCRC_RETURNS(finalize(process(algo, crc {}, std::move(begin), std::move(end))))
 
         template <std::ranges::input_range R>
         requires detail::byte_like<std::ranges::range_value_t<R>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
-        operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(compute_member_fn::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
+        [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc_type
+        operator()(const algorithm auto algo, R&& r) ZCRC_CONST_CALL_OPERATOR
+            ZCRC_RETURNS(compute_member_fn::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
 
         template <std::input_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
-        operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(compute_member_fn::operator()(default_algorithm, std::move(begin), std::move(end)))
+        [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc_type
+        operator()(I begin, S end) ZCRC_CONST_CALL_OPERATOR
+            ZCRC_RETURNS(compute_member_fn::operator()(default_algorithm, std::move(begin), std::move(end)))
 
         template <std::ranges::input_range R>
         requires detail::byte_like<std::ranges::range_value_t<R>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr crc_type
-        operator()(R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(compute_member_fn::operator()(default_algorithm, std::ranges::begin(r), std::ranges::end(r)))
+        [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc_type
+        operator()(R&& r) ZCRC_CONST_CALL_OPERATOR
+            ZCRC_RETURNS(compute_member_fn::operator()(default_algorithm, std::ranges::begin(r), std::ranges::end(r)))
     };
 
     struct is_valid_member_fn {
         template <std::input_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
-        operator()(const algorithm auto algo, I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(::crc::is_valid(process(algo, crc {}, std::move(begin), std::move(end))))
+        [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr bool
+        operator()(const algorithm auto algo, I begin, S end) ZCRC_CONST_CALL_OPERATOR
+            ZCRC_RETURNS(::zcrc::is_valid(process(algo, crc {}, std::move(begin), std::move(end))))
 
         template <std::ranges::input_range R>
         requires detail::byte_like<std::ranges::range_value_t<R>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
-        operator()(const algorithm auto algo, R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(is_valid_member_fn::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
+        [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr bool
+        operator()(const algorithm auto algo, R&& r) ZCRC_CONST_CALL_OPERATOR
+            ZCRC_RETURNS(is_valid_member_fn::operator()(algo, std::ranges::begin(r), std::ranges::end(r)))
 
         template <std::input_iterator I, std::sentinel_for<I> S>
         requires detail::byte_like<std::iter_value_t<I>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
-        operator()(I begin, S end) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(is_valid_member_fn::operator()(default_algorithm, std::move(begin), std::move(end)))
+        [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr bool
+        operator()(I begin, S end) ZCRC_CONST_CALL_OPERATOR
+            ZCRC_RETURNS(is_valid_member_fn::operator()(default_algorithm, std::move(begin), std::move(end)))
 
         template <std::ranges::input_range R>
         requires detail::byte_like<std::ranges::range_value_t<R>>
-        [[nodiscard]] CRC_STATIC_CALL_OPERATOR constexpr bool
-        operator()(R&& r) CRC_CONST_CALL_OPERATOR
-            CRC_RETURNS(is_valid_member_fn::operator()(default_algorithm, std::ranges::begin(r), std::ranges::end(r)))
+        [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr bool
+        operator()(R&& r) ZCRC_CONST_CALL_OPERATOR
+            ZCRC_RETURNS(is_valid_member_fn::operator()(default_algorithm, std::ranges::begin(r), std::ranges::end(r)))
     };
 
 public:
@@ -641,129 +641,129 @@ public:
 
 // clang-format off
 
-CRC_EXPORT using crc3_gsm                = crc<3,      0x3,      0x0, false, false,      0x7>; // academic
-CRC_EXPORT using crc3_rohc               = crc<3,      0x3,      0x7,  true,  true,      0x0>; // academic
-CRC_EXPORT using crc4_g_704              = crc<4,      0x3,      0x0,  true,  true,      0x0>; // academic
-CRC_EXPORT using crc4_interlaken         = crc<4,      0x3,      0xF, false, false,      0xF>; // academic
-CRC_EXPORT using crc5_epc_c1g2           = crc<5,     0x09,     0x09, false, false,     0x00>; // attested
-CRC_EXPORT using crc5_g_704              = crc<5,     0x15,     0x00,  true,  true,     0x00>; // academic
-CRC_EXPORT using crc5_usb                = crc<5,     0x05,     0x1F,  true,  true,     0x1F>; // confirmed
-CRC_EXPORT using crc6_cdma2000_a         = crc<6,     0x27,     0x3F, false, false,     0x00>; // attested
-CRC_EXPORT using crc6_cdma2000_b         = crc<6,     0x07,     0x3F, false, false,     0x00>; // academic
-CRC_EXPORT using crc6_darc               = crc<6,     0x19,     0x00,  true,  true,     0x00>; // attested
-CRC_EXPORT using crc6_g_704              = crc<6,     0x03,     0x00,  true,  true,     0x00>; // academic
-CRC_EXPORT using crc6_gsm                = crc<6,     0x2F,     0x00, false, false,     0x3F>; // academic
-CRC_EXPORT using crc7_mmc                = crc<7,     0x09,     0x00, false, false,     0x00>; // academic
-CRC_EXPORT using crc7_rohc               = crc<7,     0x4F,     0x7F,  true,  true,     0x00>; // academic
-CRC_EXPORT using crc7_umts               = crc<7,     0x45,     0x00, false, false,     0x00>; // academic
-CRC_EXPORT using crc8_autosar            = crc<8,     0x2F,     0xFF, false, false,     0xFF>; // attested
-CRC_EXPORT using crc8_bluetooth          = crc<8,     0xA7,     0x00,  true,  true,     0x00>; // attested
-CRC_EXPORT using crc8_cdma2000           = crc<8,     0x9B,     0xFF, false, false,     0x00>; // academic
-CRC_EXPORT using crc8_darc               = crc<8,     0x39,     0x00,  true,  true,     0x00>; // attested
-CRC_EXPORT using crc8_dvb_s2             = crc<8,     0xD5,     0x00, false, false,     0x00>; // academic
-CRC_EXPORT using crc8_gsm_a              = crc<8,     0x1D,     0x00, false, false,     0x00>; // academic
-CRC_EXPORT using crc8_gsm_b              = crc<8,     0x49,     0x00, false, false,     0xFF>; // academic
-CRC_EXPORT using crc8_hitag              = crc<8,     0x1D,     0xFF, false, false,     0x00>; // attested
-CRC_EXPORT using crc8_i_432_1            = crc<8,     0x07,     0x00, false, false,     0x55>; // academic
-CRC_EXPORT using crc8_i_code             = crc<8,     0x1D,     0xFD, false, false,     0x00>; // attested
-CRC_EXPORT using crc8_lte                = crc<8,     0x9B,     0x00, false, false,     0x00>; // academic
-CRC_EXPORT using crc8_maxim_dow          = crc<8,     0x31,     0x00,  true,  true,     0x00>; // attested
-CRC_EXPORT using crc8_mifare_mad         = crc<8,     0x1D,     0xC7, false, false,     0x00>; // attested
-CRC_EXPORT using crc8_nrsc_5             = crc<8,     0x31,     0xFF, false, false,     0x00>; // attested
-CRC_EXPORT using crc8_opensafety         = crc<8,     0x2F,     0x00, false, false,     0x00>; // attested
-CRC_EXPORT using crc8_rohc               = crc<8,     0x07,     0xFF,  true,  true,     0x00>; // academic
-CRC_EXPORT using crc8_sae_j1850          = crc<8,     0x1D,     0xFF, false, false,     0xFF>; // attested
-CRC_EXPORT using crc8_smbus              = crc<8,     0x07,     0x00, false, false,     0x00>; // attested
-CRC_EXPORT using crc8_tech_3250          = crc<8,     0x1D,     0xFF,  true,  true,     0x00>; // attested
-CRC_EXPORT using crc8_wcdma              = crc<8,     0x9B,     0x00,  true,  true,     0x00>; // third_party
-CRC_EXPORT using crc10_atm               = crc<10,    0x233,    0x000, false, false,    0x000>; // attested
-CRC_EXPORT using crc10_cdma2000          = crc<10,    0x3D9,    0x3FF, false, false,    0x000>; // academic
-CRC_EXPORT using crc10_gsm               = crc<10,    0x175,    0x000, false, false,    0x3FF>; // academic
-CRC_EXPORT using crc11_flexray           = crc<11,    0x385,    0x01A, false, false,    0x000>; // attested
-CRC_EXPORT using crc11_umts              = crc<11,    0x307,    0x000, false, false,    0x000>; // academic
-CRC_EXPORT using crc12_cdma2000          = crc<12,    0xF13,    0xFFF, false, false,    0x000>; // academic
-CRC_EXPORT using crc12_dect              = crc<12,    0x80F,    0x000, false, false,    0x000>; // academic
-CRC_EXPORT using crc12_gsm               = crc<12,    0xD31,    0x000, false, false,    0xFFF>; // academic
-CRC_EXPORT using crc12_umts              = crc<12,    0x80F,    0x000, false,  true,    0x000>; // academic
-CRC_EXPORT using crc13_bbc               = crc<13,   0x1CF5,   0x0000, false, false,   0x0000>; // attested
-CRC_EXPORT using crc14_darc              = crc<14,   0x0805,   0x0000,  true,  true,   0x0000>; // attested
-CRC_EXPORT using crc14_gsm               = crc<14,   0x202D,   0x0000, false, false,   0x3FFF>; // academic
-CRC_EXPORT using crc15_can               = crc<15,   0x4599,   0x0000, false, false,   0x0000>; // academic
-CRC_EXPORT using crc15_mpt1327           = crc<15,   0x6815,   0x0000, false, false,   0x0001>; // attested
-CRC_EXPORT using crc16_arc               = crc<16,   0x8005,   0x0000,  true,  true,   0x0000>; // attested
-CRC_EXPORT using crc16_cdma2000          = crc<16,   0xC867,   0xFFFF, false, false,   0x0000>; // academic
-CRC_EXPORT using crc16_cms               = crc<16,   0x8005,   0xFFFF, false, false,   0x0000>; // third_party
-CRC_EXPORT using crc16_dds_110           = crc<16,   0x8005,   0x800D, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_dect_r            = crc<16,   0x0589,   0x0000, false, false,   0x0001>; // attested
-CRC_EXPORT using crc16_dect_x            = crc<16,   0x0589,   0x0000, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_dnp               = crc<16,   0x3D65,   0x0000,  true,  true,   0xFFFF>; // confirmed
-CRC_EXPORT using crc16_en_13757          = crc<16,   0x3D65,   0x0000, false, false,   0xFFFF>; // confirmed
-CRC_EXPORT using crc16_genibus           = crc<16,   0x1021,   0xFFFF, false, false,   0xFFFF>; // attested
-CRC_EXPORT using crc16_gsm               = crc<16,   0x1021,   0x0000, false, false,   0xFFFF>; // attested
-CRC_EXPORT using crc16_ibm_3740          = crc<16,   0x1021,   0xFFFF, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_ibm_sdlc          = crc<16,   0x1021,   0xFFFF,  true,  true,   0xFFFF>; // attested
-CRC_EXPORT using crc16_iso_iec_14443_3_a = crc<16,   0x1021,   0xC6C6,  true,  true,   0x0000>; // attested
-CRC_EXPORT using crc16_kermit            = crc<16,   0x1021,   0x0000,  true,  true,   0x0000>; // attested
-CRC_EXPORT using crc16_lj1200            = crc<16,   0x6F63,   0x0000, false, false,   0x0000>; // third_party
-CRC_EXPORT using crc16_m17               = crc<16,   0x5935,   0xFFFF, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_maxim_dow         = crc<16,   0x8005,   0x0000,  true,  true,   0xFFFF>; // attested
-CRC_EXPORT using crc16_mcrf4xx           = crc<16,   0x1021,   0xFFFF,  true,  true,   0x0000>; // attested
-CRC_EXPORT using crc16_modbus            = crc<16,   0x8005,   0xFFFF,  true,  true,   0x0000>; // attested
-CRC_EXPORT using crc16_nrsc_5            = crc<16,   0x080B,   0xFFFF,  true,  true,   0x0000>; // attested
-CRC_EXPORT using crc16_opensafety_a      = crc<16,   0x5935,   0x0000, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_opensafety_b      = crc<16,   0x755B,   0x0000, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_profibus          = crc<16,   0x1DCF,   0xFFFF, false, false,   0xFFFF>; // attested
-CRC_EXPORT using crc16_riello            = crc<16,   0x1021,   0xB2AA,  true,  true,   0x0000>; // third_party
-CRC_EXPORT using crc16_spi_fujitsu       = crc<16,   0x1021,   0x1D0F, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_t10_dif           = crc<16,   0x8BB7,   0x0000, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_teledisk          = crc<16,   0xA097,   0x0000, false, false,   0x0000>; // confirmed
-CRC_EXPORT using crc16_tms37157          = crc<16,   0x1021,   0x89EC,  true,  true,   0x0000>; // attested
-CRC_EXPORT using crc16_umts              = crc<16,   0x8005,   0x0000, false, false,   0x0000>; // attested
-CRC_EXPORT using crc16_usb               = crc<16,   0x8005,   0xFFFF,  true,  true,   0xFFFF>; // confirmed
-CRC_EXPORT using crc16_xmodem            = crc<16,   0x1021,   0x0000, false, false,   0x0000>; // attested
-CRC_EXPORT using crc17_can_fd            = crc<17,  0x1685B,  0x00000, false, false,  0x00000>; // academic
-CRC_EXPORT using crc21_can_fd            = crc<21, 0x102899, 0x000000, false, false, 0x000000>; // academic
-CRC_EXPORT using crc24_ble               = crc<24, 0x00065B, 0x555555,  true,  true, 0x000000>; // attested
-CRC_EXPORT using crc24_flexray_a         = crc<24, 0x5D6DCB, 0xFEDCBA, false, false, 0x000000>; // attested
-CRC_EXPORT using crc24_flexray_b         = crc<24, 0x5D6DCB, 0xABCDEF, false, false, 0x000000>; // attested
-CRC_EXPORT using crc24_interlaken        = crc<24, 0x328B63, 0xFFFFFF, false, false, 0xFFFFFF>; // academic
-CRC_EXPORT using crc24_lte_a             = crc<24, 0x864CFB, 0x000000, false, false, 0x000000>; // academic
-CRC_EXPORT using crc24_lte_b             = crc<24, 0x800063, 0x000000, false, false, 0x000000>; // academic
-CRC_EXPORT using crc24_openpgp           = crc<24, 0x864CFB, 0xB704CE, false, false, 0x000000>; // attested
-CRC_EXPORT using crc24_os_9              = crc<24, 0x800063, 0xFFFFFF, false, false, 0xFFFFFF>; // attested
-CRC_EXPORT using crc30_cdma              = crc<30, 0x2030B9C7, 0x3FFFFFFF, false, false, 0x3FFFFFFF>; // academic
-CRC_EXPORT using crc31_philips           = crc<31, 0x04C11DB7, 0x7FFFFFFF, false, false, 0x7FFFFFFF>; // confirmed
-CRC_EXPORT using crc32_aixm              = crc<32, 0x814141AB, 0x00000000, false, false, 0x00000000>; // attested
-CRC_EXPORT using crc32_autosar           = crc<32, 0xF4ACFB13, 0xFFFFFFFF,  true,  true, 0xFFFFFFFF>; // attested
-CRC_EXPORT using crc32_base91_d          = crc<32, 0xA833982B, 0xFFFFFFFF,  true,  true, 0xFFFFFFFF>; // confirmed
-CRC_EXPORT using crc32                   = crc<32, 0x04C11DB7, 0xFFFFFFFF, false, false, 0xFFFFFFFF>; // attested
-CRC_EXPORT using crc32_cd_rom_edc        = crc<32, 0x8001801B, 0x00000000,  true,  true, 0x00000000>; // academic
-CRC_EXPORT using crc32_cksum             = crc<32, 0x04C11DB7, 0x00000000, false, false, 0xFFFFFFFF>; // attested
-CRC_EXPORT using crc32c                  = crc<32, 0x1EDC6F41, 0xFFFFFFFF,  true,  true, 0xFFFFFFFF>; // attested
-CRC_EXPORT using crc32_iso_hdlc          = crc<32, 0x04C11DB7, 0xFFFFFFFF,  true,  true, 0xFFFFFFFF>; // attested
-CRC_EXPORT using crc32_jamcrc            = crc<32, 0x04C11DB7, 0xFFFFFFFF,  true,  true, 0x00000000>; // confirmed
-CRC_EXPORT using crc32_mef               = crc<32, 0x741B8CD7, 0xFFFFFFFF,  true,  true, 0x00000000>; // attested
-CRC_EXPORT using crc32_mpeg2             = crc<32, 0x04C11DB7, 0xFFFFFFFF, false, false, 0x00000000>; // attested
-CRC_EXPORT using crc32_xfer              = crc<32, 0x000000AF, 0x00000000, false, false, 0x00000000>; // confirmed
-CRC_EXPORT using crc40_gsm               = crc<40, 0x0004820009, 0x0000000000, false, false, 0xFFFFFFFFFF>; // academic
-CRC_EXPORT using crc64_ecma_182          = crc<64, 0x42F0E1EBA9EA3693, 0x0000000000000000, false, false, 0x0000000000000000>; // academic
-CRC_EXPORT using crc64_go_iso            = crc<64, 0x000000000000001B, 0xFFFFFFFFFFFFFFFF,  true,  true, 0xFFFFFFFFFFFFFFFF>; // confirmed
-CRC_EXPORT using crc64_ms                = crc<64, 0x259C84CBA6426349, 0xFFFFFFFFFFFFFFFF,  true,  true, 0x0000000000000000>; // attested
-CRC_EXPORT using crc64_nvme              = crc<64, 0xAD93D23594C93659, 0xFFFFFFFFFFFFFFFF,  true,  true, 0xFFFFFFFFFFFFFFFF>; // attested
-CRC_EXPORT using crc64_redis             = crc<64, 0xAD93D23594C935A9, 0x0000000000000000,  true,  true, 0x0000000000000000>; // academic
-CRC_EXPORT using crc64_we                = crc<64, 0x42F0E1EBA9EA3693, 0xFFFFFFFFFFFFFFFF, false, false, 0xFFFFFFFFFFFFFFFF>; // confirmed
-CRC_EXPORT using crc64_xz                = crc<64, 0x42F0E1EBA9EA3693, 0xFFFFFFFFFFFFFFFF,  true,  true, 0xFFFFFFFFFFFFFFFF>; // attested
-// CRC_EXPORT using crc82_darc = crc<82, std::bitset<82>{"0000000000110000100011000000000100010001000000010001010000000001010001000000010000010001"}, 0x0,  true,  true, >; // attested
+ZCRC_EXPORT using crc3_gsm                = crc<3,      0x3,      0x0, false, false,      0x7>; // academic
+ZCRC_EXPORT using crc3_rohc               = crc<3,      0x3,      0x7,  true,  true,      0x0>; // academic
+ZCRC_EXPORT using crc4_g_704              = crc<4,      0x3,      0x0,  true,  true,      0x0>; // academic
+ZCRC_EXPORT using crc4_interlaken         = crc<4,      0x3,      0xF, false, false,      0xF>; // academic
+ZCRC_EXPORT using crc5_epc_c1g2           = crc<5,     0x09,     0x09, false, false,     0x00>; // attested
+ZCRC_EXPORT using crc5_g_704              = crc<5,     0x15,     0x00,  true,  true,     0x00>; // academic
+ZCRC_EXPORT using crc5_usb                = crc<5,     0x05,     0x1F,  true,  true,     0x1F>; // confirmed
+ZCRC_EXPORT using crc6_cdma2000_a         = crc<6,     0x27,     0x3F, false, false,     0x00>; // attested
+ZCRC_EXPORT using crc6_cdma2000_b         = crc<6,     0x07,     0x3F, false, false,     0x00>; // academic
+ZCRC_EXPORT using crc6_darc               = crc<6,     0x19,     0x00,  true,  true,     0x00>; // attested
+ZCRC_EXPORT using crc6_g_704              = crc<6,     0x03,     0x00,  true,  true,     0x00>; // academic
+ZCRC_EXPORT using crc6_gsm                = crc<6,     0x2F,     0x00, false, false,     0x3F>; // academic
+ZCRC_EXPORT using crc7_mmc                = crc<7,     0x09,     0x00, false, false,     0x00>; // academic
+ZCRC_EXPORT using crc7_rohc               = crc<7,     0x4F,     0x7F,  true,  true,     0x00>; // academic
+ZCRC_EXPORT using crc7_umts               = crc<7,     0x45,     0x00, false, false,     0x00>; // academic
+ZCRC_EXPORT using crc8_autosar            = crc<8,     0x2F,     0xFF, false, false,     0xFF>; // attested
+ZCRC_EXPORT using crc8_bluetooth          = crc<8,     0xA7,     0x00,  true,  true,     0x00>; // attested
+ZCRC_EXPORT using crc8_cdma2000           = crc<8,     0x9B,     0xFF, false, false,     0x00>; // academic
+ZCRC_EXPORT using crc8_darc               = crc<8,     0x39,     0x00,  true,  true,     0x00>; // attested
+ZCRC_EXPORT using crc8_dvb_s2             = crc<8,     0xD5,     0x00, false, false,     0x00>; // academic
+ZCRC_EXPORT using crc8_gsm_a              = crc<8,     0x1D,     0x00, false, false,     0x00>; // academic
+ZCRC_EXPORT using crc8_gsm_b              = crc<8,     0x49,     0x00, false, false,     0xFF>; // academic
+ZCRC_EXPORT using crc8_hitag              = crc<8,     0x1D,     0xFF, false, false,     0x00>; // attested
+ZCRC_EXPORT using crc8_i_432_1            = crc<8,     0x07,     0x00, false, false,     0x55>; // academic
+ZCRC_EXPORT using crc8_i_code             = crc<8,     0x1D,     0xFD, false, false,     0x00>; // attested
+ZCRC_EXPORT using crc8_lte                = crc<8,     0x9B,     0x00, false, false,     0x00>; // academic
+ZCRC_EXPORT using crc8_maxim_dow          = crc<8,     0x31,     0x00,  true,  true,     0x00>; // attested
+ZCRC_EXPORT using crc8_mifare_mad         = crc<8,     0x1D,     0xC7, false, false,     0x00>; // attested
+ZCRC_EXPORT using crc8_nrsc_5             = crc<8,     0x31,     0xFF, false, false,     0x00>; // attested
+ZCRC_EXPORT using crc8_opensafety         = crc<8,     0x2F,     0x00, false, false,     0x00>; // attested
+ZCRC_EXPORT using crc8_rohc               = crc<8,     0x07,     0xFF,  true,  true,     0x00>; // academic
+ZCRC_EXPORT using crc8_sae_j1850          = crc<8,     0x1D,     0xFF, false, false,     0xFF>; // attested
+ZCRC_EXPORT using crc8_smbus              = crc<8,     0x07,     0x00, false, false,     0x00>; // attested
+ZCRC_EXPORT using crc8_tech_3250          = crc<8,     0x1D,     0xFF,  true,  true,     0x00>; // attested
+ZCRC_EXPORT using crc8_wcdma              = crc<8,     0x9B,     0x00,  true,  true,     0x00>; // third_party
+ZCRC_EXPORT using crc10_atm               = crc<10,    0x233,    0x000, false, false,    0x000>; // attested
+ZCRC_EXPORT using crc10_cdma2000          = crc<10,    0x3D9,    0x3FF, false, false,    0x000>; // academic
+ZCRC_EXPORT using crc10_gsm               = crc<10,    0x175,    0x000, false, false,    0x3FF>; // academic
+ZCRC_EXPORT using crc11_flexray           = crc<11,    0x385,    0x01A, false, false,    0x000>; // attested
+ZCRC_EXPORT using crc11_umts              = crc<11,    0x307,    0x000, false, false,    0x000>; // academic
+ZCRC_EXPORT using crc12_cdma2000          = crc<12,    0xF13,    0xFFF, false, false,    0x000>; // academic
+ZCRC_EXPORT using crc12_dect              = crc<12,    0x80F,    0x000, false, false,    0x000>; // academic
+ZCRC_EXPORT using crc12_gsm               = crc<12,    0xD31,    0x000, false, false,    0xFFF>; // academic
+ZCRC_EXPORT using crc12_umts              = crc<12,    0x80F,    0x000, false,  true,    0x000>; // academic
+ZCRC_EXPORT using crc13_bbc               = crc<13,   0x1CF5,   0x0000, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc14_darc              = crc<14,   0x0805,   0x0000,  true,  true,   0x0000>; // attested
+ZCRC_EXPORT using crc14_gsm               = crc<14,   0x202D,   0x0000, false, false,   0x3FFF>; // academic
+ZCRC_EXPORT using crc15_can               = crc<15,   0x4599,   0x0000, false, false,   0x0000>; // academic
+ZCRC_EXPORT using crc15_mpt1327           = crc<15,   0x6815,   0x0000, false, false,   0x0001>; // attested
+ZCRC_EXPORT using crc16_arc               = crc<16,   0x8005,   0x0000,  true,  true,   0x0000>; // attested
+ZCRC_EXPORT using crc16_cdma2000          = crc<16,   0xC867,   0xFFFF, false, false,   0x0000>; // academic
+ZCRC_EXPORT using crc16_cms               = crc<16,   0x8005,   0xFFFF, false, false,   0x0000>; // third_party
+ZCRC_EXPORT using crc16_dds_110           = crc<16,   0x8005,   0x800D, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_dect_r            = crc<16,   0x0589,   0x0000, false, false,   0x0001>; // attested
+ZCRC_EXPORT using crc16_dect_x            = crc<16,   0x0589,   0x0000, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_dnp               = crc<16,   0x3D65,   0x0000,  true,  true,   0xFFFF>; // confirmed
+ZCRC_EXPORT using crc16_en_13757          = crc<16,   0x3D65,   0x0000, false, false,   0xFFFF>; // confirmed
+ZCRC_EXPORT using crc16_genibus           = crc<16,   0x1021,   0xFFFF, false, false,   0xFFFF>; // attested
+ZCRC_EXPORT using crc16_gsm               = crc<16,   0x1021,   0x0000, false, false,   0xFFFF>; // attested
+ZCRC_EXPORT using crc16_ibm_3740          = crc<16,   0x1021,   0xFFFF, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_ibm_sdlc          = crc<16,   0x1021,   0xFFFF,  true,  true,   0xFFFF>; // attested
+ZCRC_EXPORT using crc16_iso_iec_14443_3_a = crc<16,   0x1021,   0xC6C6,  true,  true,   0x0000>; // attested
+ZCRC_EXPORT using crc16_kermit            = crc<16,   0x1021,   0x0000,  true,  true,   0x0000>; // attested
+ZCRC_EXPORT using crc16_lj1200            = crc<16,   0x6F63,   0x0000, false, false,   0x0000>; // third_party
+ZCRC_EXPORT using crc16_m17               = crc<16,   0x5935,   0xFFFF, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_maxim_dow         = crc<16,   0x8005,   0x0000,  true,  true,   0xFFFF>; // attested
+ZCRC_EXPORT using crc16_mcrf4xx           = crc<16,   0x1021,   0xFFFF,  true,  true,   0x0000>; // attested
+ZCRC_EXPORT using crc16_modbus            = crc<16,   0x8005,   0xFFFF,  true,  true,   0x0000>; // attested
+ZCRC_EXPORT using crc16_nrsc_5            = crc<16,   0x080B,   0xFFFF,  true,  true,   0x0000>; // attested
+ZCRC_EXPORT using crc16_opensafety_a      = crc<16,   0x5935,   0x0000, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_opensafety_b      = crc<16,   0x755B,   0x0000, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_profibus          = crc<16,   0x1DCF,   0xFFFF, false, false,   0xFFFF>; // attested
+ZCRC_EXPORT using crc16_riello            = crc<16,   0x1021,   0xB2AA,  true,  true,   0x0000>; // third_party
+ZCRC_EXPORT using crc16_spi_fujitsu       = crc<16,   0x1021,   0x1D0F, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_t10_dif           = crc<16,   0x8BB7,   0x0000, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_teledisk          = crc<16,   0xA097,   0x0000, false, false,   0x0000>; // confirmed
+ZCRC_EXPORT using crc16_tms37157          = crc<16,   0x1021,   0x89EC,  true,  true,   0x0000>; // attested
+ZCRC_EXPORT using crc16_umts              = crc<16,   0x8005,   0x0000, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc16_usb               = crc<16,   0x8005,   0xFFFF,  true,  true,   0xFFFF>; // confirmed
+ZCRC_EXPORT using crc16_xmodem            = crc<16,   0x1021,   0x0000, false, false,   0x0000>; // attested
+ZCRC_EXPORT using crc17_can_fd            = crc<17,  0x1685B,  0x00000, false, false,  0x00000>; // academic
+ZCRC_EXPORT using crc21_can_fd            = crc<21, 0x102899, 0x000000, false, false, 0x000000>; // academic
+ZCRC_EXPORT using crc24_ble               = crc<24, 0x00065B, 0x555555,  true,  true, 0x000000>; // attested
+ZCRC_EXPORT using crc24_flexray_a         = crc<24, 0x5D6DCB, 0xFEDCBA, false, false, 0x000000>; // attested
+ZCRC_EXPORT using crc24_flexray_b         = crc<24, 0x5D6DCB, 0xABCDEF, false, false, 0x000000>; // attested
+ZCRC_EXPORT using crc24_interlaken        = crc<24, 0x328B63, 0xFFFFFF, false, false, 0xFFFFFF>; // academic
+ZCRC_EXPORT using crc24_lte_a             = crc<24, 0x864CFB, 0x000000, false, false, 0x000000>; // academic
+ZCRC_EXPORT using crc24_lte_b             = crc<24, 0x800063, 0x000000, false, false, 0x000000>; // academic
+ZCRC_EXPORT using crc24_openpgp           = crc<24, 0x864CFB, 0xB704CE, false, false, 0x000000>; // attested
+ZCRC_EXPORT using crc24_os_9              = crc<24, 0x800063, 0xFFFFFF, false, false, 0xFFFFFF>; // attested
+ZCRC_EXPORT using crc30_cdma              = crc<30, 0x2030B9C7, 0x3FFFFFFF, false, false, 0x3FFFFFFF>; // academic
+ZCRC_EXPORT using crc31_philips           = crc<31, 0x04C11DB7, 0x7FFFFFFF, false, false, 0x7FFFFFFF>; // confirmed
+ZCRC_EXPORT using crc32_aixm              = crc<32, 0x814141AB, 0x00000000, false, false, 0x00000000>; // attested
+ZCRC_EXPORT using crc32_autosar           = crc<32, 0xF4ACFB13, 0xFFFFFFFF,  true,  true, 0xFFFFFFFF>; // attested
+ZCRC_EXPORT using crc32_base91_d          = crc<32, 0xA833982B, 0xFFFFFFFF,  true,  true, 0xFFFFFFFF>; // confirmed
+ZCRC_EXPORT using crc32                   = crc<32, 0x04C11DB7, 0xFFFFFFFF, false, false, 0xFFFFFFFF>; // attested
+ZCRC_EXPORT using crc32_cd_rom_edc        = crc<32, 0x8001801B, 0x00000000,  true,  true, 0x00000000>; // academic
+ZCRC_EXPORT using crc32_cksum             = crc<32, 0x04C11DB7, 0x00000000, false, false, 0xFFFFFFFF>; // attested
+ZCRC_EXPORT using crc32c                  = crc<32, 0x1EDC6F41, 0xFFFFFFFF,  true,  true, 0xFFFFFFFF>; // attested
+ZCRC_EXPORT using crc32_iso_hdlc          = crc<32, 0x04C11DB7, 0xFFFFFFFF,  true,  true, 0xFFFFFFFF>; // attested
+ZCRC_EXPORT using crc32_jamcrc            = crc<32, 0x04C11DB7, 0xFFFFFFFF,  true,  true, 0x00000000>; // confirmed
+ZCRC_EXPORT using crc32_mef               = crc<32, 0x741B8CD7, 0xFFFFFFFF,  true,  true, 0x00000000>; // attested
+ZCRC_EXPORT using crc32_mpeg2             = crc<32, 0x04C11DB7, 0xFFFFFFFF, false, false, 0x00000000>; // attested
+ZCRC_EXPORT using crc32_xfer              = crc<32, 0x000000AF, 0x00000000, false, false, 0x00000000>; // confirmed
+ZCRC_EXPORT using crc40_gsm               = crc<40, 0x0004820009, 0x0000000000, false, false, 0xFFFFFFFFFF>; // academic
+ZCRC_EXPORT using crc64_ecma_182          = crc<64, 0x42F0E1EBA9EA3693, 0x0000000000000000, false, false, 0x0000000000000000>; // academic
+ZCRC_EXPORT using crc64_go_iso            = crc<64, 0x000000000000001B, 0xFFFFFFFFFFFFFFFF,  true,  true, 0xFFFFFFFFFFFFFFFF>; // confirmed
+ZCRC_EXPORT using crc64_ms                = crc<64, 0x259C84CBA6426349, 0xFFFFFFFFFFFFFFFF,  true,  true, 0x0000000000000000>; // attested
+ZCRC_EXPORT using crc64_nvme              = crc<64, 0xAD93D23594C93659, 0xFFFFFFFFFFFFFFFF,  true,  true, 0xFFFFFFFFFFFFFFFF>; // attested
+ZCRC_EXPORT using crc64_redis             = crc<64, 0xAD93D23594C935A9, 0x0000000000000000,  true,  true, 0x0000000000000000>; // academic
+ZCRC_EXPORT using crc64_we                = crc<64, 0x42F0E1EBA9EA3693, 0xFFFFFFFFFFFFFFFF, false, false, 0xFFFFFFFFFFFFFFFF>; // confirmed
+ZCRC_EXPORT using crc64_xz                = crc<64, 0x42F0E1EBA9EA3693, 0xFFFFFFFFFFFFFFFF,  true,  true, 0xFFFFFFFFFFFFFFFF>; // attested
+// ZCRC_EXPORT using crc82_darc = crc<82, std::bitset<82>{"0000000000110000100011000000000100010001000000010001010000000001010001000000010000010001"}, 0x0,  true,  true, >; // attested
 // clang-format on
 
-} // namespace crc
+} // namespace zcrc
 
-#undef CRC_EXPORT
-#undef CRC_RETURNS
-#undef CRC_STATIC_CALL_OPERATOR
-#undef CRC_CONST_CALL_OPERATOR
-#undef CRC_STATIC23
+#undef ZCRC_EXPORT
+#undef ZCRC_RETURNS
+#undef ZCRC_STATIC_CALL_OPERATOR
+#undef ZCRC_CONST_CALL_OPERATOR
+#undef ZCRC_STATIC23
 
-#endif // CRC_JUST_THE_INCLUDES
+#endif // ZCRC_JUST_THE_INCLUDES
 
-#endif // CRC_HPP_INCLUDED
+#endif // ZCRC_HPP_INCLUDED
