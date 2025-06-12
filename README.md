@@ -11,14 +11,14 @@ A C++20 high-performance constexpr-capable single-header-only CRC library with o
 
 ## API
 
-Most likely, all you're looking for is a simple function that computes a common CRC variant.
-There are two fundamental CRC operations: *building* a CRC to append to your message,
-and *verifying* whether an existing message is valid:
+There are two fundamental CRC operations: *computing* a CRC to append to a message,
+and *verifying* whether an existing message is valid. Most likely, all you're looking
+for is a simple function that does that for a common CRC variant. Here you go:
 
 ```cpp
 #include <zcrc/zcrc.hpp> // Or: import zcrc;
 
-// Build a CRC:
+// Compute a CRC:
 std::string_view data {"Hello world!"};
 std::uint32_t crc {zcrc::crc32c::compute(data)};
 
@@ -28,7 +28,6 @@ if (!zcrc::crc8_bluetooth::is_valid(some_message)) {
 }
 ```
 
-You can pass in any input range, but processing is fastest with contiguous sized ranges.
 For more complex cases, the CRC can be built up incrementally:
 
 ```cpp
@@ -47,18 +46,20 @@ assert(result == zcrc::crc64_xz::compute("Some data processed in parts"sv));
 ```
 
 All the functions above also have overloads taking iterator pairs instead of ranges.
+What's more, they accept ranges as weak as input ranges,
+although processing is fastest with contiguous sized ranges.
 
 ### Choosing an algorithm
 
 There are many algorithms for calculating CRCs.
-The library will pick a good default (`zcrc::default_algorithm`; currently, that's `zcrc::slice_by<8>`),
-but it isn't omniscient,
-so you have the ability to specify which algorithm you want.
+The library will pick a good default, but it isn't omniscient,
+so you have the ability to specify one yourself.
 The following algorithms are available:
 
 - `zcrc::slice_by<N>`: process `N` bytes at a time.
   Requires an `N * 256 * sizeof(zcrc::<...>::crc_type)` byte lookup table.
   For example, CRC32C implemented with slice-by-4 requires a 4 KiB lookup table.
+- `zcrc::default_algorithm`: used when no algorithm is specified. Currently `zcrc::slice_by<8>`.
 
 To specify an algorithm, pass it as the first parameter to `zcrc::<...>::compute`, `zcrc::<...>::is_valid`, or `zcrc::process`:
 
