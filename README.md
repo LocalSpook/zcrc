@@ -222,6 +222,14 @@ To build the benchmarks, add `-DZCRC_BENCHMARK=ON`.
 The benchmarking framework is also Catch2,
 and the resulting binary will be `build/bin/benchmarks`.
 
+Package maintainers can control where ZCRC installs its files with the following options:
+
+|             Option             |                Default               | Controls  |
+|--------------------------------|--------------------------------------|-----------|
+| `CMAKE_INSTALL_INCLUDEDIR`     | N/A (CMake builtin)                  | `*.hpp`   |
+| `ZCRC_PKGCONFIG_INSTALL_DIR`   | `${CMAKE_INSTALL_LIBDIR}/pkgconfig`  | `zcrc.pc` |
+| `ZCRC_CMAKE_FILES_INSTALL_DIR` | `${CMAKE_INSTALL_LIBDIR}/cmake/zcrc` | `*.cmake` |
+
 ## Miscellaneous
 
 - This library provides zero ABI stability guarantees.

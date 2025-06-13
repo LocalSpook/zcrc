@@ -4,7 +4,7 @@ project(zcrc
     VERSION 0.1.0
     LANGUAGES CXX
     DESCRIPTION "A high-performance C++ CRC library."
-    HOMEPAGE_URL "https://github.com/LocalSpook/zcrc"
+    HOMEPAGE_URL "https://github.com/localspook/zcrc"
 )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
@@ -16,6 +16,8 @@ include(GNUInstallDirs)
 option(ZCRC_MODULE "build the library as a module" OFF)
 option(ZCRC_TEST "build the tests" OFF)
 option(ZCRC_BENCHMARK "build the benchmarks" OFF)
+set(ZCRC_PKGCONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE PATH "directory to install .pc files to")
+set(ZCRC_CMAKE_FILES_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc CACHE PATH "directory to install .cmake files to" )
 
 add_library(zcrc INTERFACE)
 add_library(zcrc::zcrc ALIAS zcrc)
@@ -53,35 +55,41 @@ file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake [[
 include(${CMAKE_CURRENT_LIST_DIR}/zcrc-targets.cmake)
 ]])
 
+cmake_path(
+    RELATIVE_PATH CMAKE_INSTALL_INCLUDEDIR
+    BASE_DIRECTORY ${ZCRC_PKGCONFIG_INSTALL_DIR}
+    OUTPUT_VARIABLE path_to_include_dir_from_pkgconfig_dir
+)
+
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc.in [[
 Name: ZCRC
-Version: ${PROJECT_VERSION}
-Description: ${PROJECT_DESCRIPTION}
-URL: ${PROJECT_HOMEPAGE_URL}
-Cflags: -I"${CMAKE_INSTALL_FULL_INCLUDEDIR}/zcrc"
+Version: @PROJECT_VERSION@
+Description: @PROJECT_DESCRIPTION@
+URL: @PROJECT_HOMEPAGE_URL@
+Cflags: -I"${pcfiledir}/@path_to_include_dir_from_pkgconfig_dir@"
 ]])
 
-configure_file(${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc.in ${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc)
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc.in ${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc @ONLY)
 
 install(
 	FILES
 		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake
 		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config-version.cmake
     DESTINATION
-		${CMAKE_INSTALL_LIBDIR}/cmake/zcrc
+        ${ZCRC_CMAKE_FILES_INSTALL_DIR}
 )
 
 install(
     FILES
         ${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc
     DESTINATION
-        ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+        ${ZCRC_PKGCONFIG_INSTALL_DIR}
 )
 
 install(
 	EXPORT zcrc-targets
 	FILE zcrc-targets.cmake
-	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc
+	DESTINATION ${ZCRC_CMAKE_FILES_INSTALL_DIR}
 	NAMESPACE zcrc::
 )
 
