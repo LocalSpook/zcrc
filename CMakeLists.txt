@@ -70,7 +70,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/zcrc-targets.cmake)
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT TARGET zcrc::zcrc-module)
     add_library(zcrc::zcrc-module IMPORTED EXCLUDE_FROM_ALL)
     target_sources(zcrc::zcrc-module
-        PRIVATE FILE_SET CXX_MODULES FILES
+        PUBLIC FILE_SET CXX_MODULES FILES
             ${CMAKE_CURRENT_LIST_DIR}/@path_to_module_dir_from_cmake_files_dir@/zcrc.cppm
     )
     target_link_libraries(zcrc::zcrc-module PRIVATE zcrc::zcrc)

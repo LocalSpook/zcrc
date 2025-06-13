@@ -18,6 +18,9 @@
 #ifdef ZCRC_TEST_MODULE
 import zcrc;
 #define HEADER_OR_MODULE_TAG "[module]"
+#if __has_include(<zcrc/zcrc.hpp>)
+#error The zcrc::zcrc-module target isn't hermetic; it incorrectly exposes not only the zcrc module, but also the <zcrc/zcrc.hpp> header.
+#endif
 #else
 #include <zcrc/zcrc.hpp>
 #define HEADER_OR_MODULE_TAG "[header]"
