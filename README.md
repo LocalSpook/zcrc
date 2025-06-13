@@ -154,6 +154,7 @@ std::uint32_t crc {zcrc::finalize(std::ranges::fold_left(data, zcrc::crc32c {}, 
 ### With FetchContent (recommended)
 
 ```cmake
+set(ZCRC_MODULE ON) # If using the module.
 FetchContent_Declare(zcrc
     GIT_REPOSITORY https://github.com/LocalSpook/zcrc
     GIT_TAG ... # You should use the latest commit on the main branch.
@@ -161,14 +162,14 @@ FetchContent_Declare(zcrc
 )
 FetchContent_MakeAvailable(zcrc)
 
-target_link_libraries(... zcrc::zcrc)
+target_link_libraries(... zcrc::zcrc[-module])
 ```
 
 ### With find_package
 
 ```cmake
 find_package(zcrc REQUIRED)
-target_link_libraries(... zcrc::zcrc)
+target_link_libraries(... zcrc::zcrc[-module])
 ```
 
 ### With vendoring (discouraged)
