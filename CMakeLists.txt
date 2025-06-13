@@ -53,12 +53,29 @@ file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake [[
 include(${CMAKE_CURRENT_LIST_DIR}/zcrc-targets.cmake)
 ]])
 
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc.in [[
+Name: ZCRC
+Version: ${PROJECT_VERSION}
+Description: ${PROJECT_DESCRIPTION}
+URL: ${PROJECT_HOMEPAGE_URL}
+Cflags: -I"${CMAKE_INSTALL_FULL_INCLUDEDIR}/zcrc"
+]])
+
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc.in ${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc)
+
 install(
 	FILES
 		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake
 		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config-version.cmake
     DESTINATION
 		${CMAKE_INSTALL_LIBDIR}/cmake/zcrc
+)
+
+install(
+    FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc
+    DESTINATION
+        ${CMAKE_INSTALL_LIBDIR}/pkgconfig
 )
 
 install(
