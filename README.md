@@ -154,7 +154,6 @@ std::uint32_t crc {zcrc::finalize(std::ranges::fold_left(data, zcrc::crc32c {}, 
 ### With FetchContent (recommended)
 
 ```cmake
-set(ZCRC_MODULE ON) # If using the module.
 FetchContent_Declare(zcrc
     GIT_REPOSITORY https://github.com/LocalSpook/zcrc
     GIT_TAG ... # You should use the latest commit on the main branch.
@@ -180,9 +179,10 @@ system instead, but this method *is* officially supported.
 
 ## Supported toolchains
 
-| Toolchain  | Version  |
-|------------|----------|
-| Emscripten | ≥ 3.1.41 (with `ZCRC_MODULE`, ≥ 4.0.3) |
+| Toolchain  | Baseline  | `zcrc::zcrc-module` |
+|------------|-----------|---------------------|
+| CMake      | ≥ 3.23    | ≥ 3.28              |
+| Emscripten | ≥ 3.1.41  | ≥ 4.0.3             |
 
 <!--
 Emscripten before 3.1.41 bundles libc++ 15, which has incomplete ranges support
@@ -204,19 +204,18 @@ cmake -B build [-G Ninja]
 cmake --build build
 ```
 
-To also build the module, add `-DZCRC_MODULE=ON`, then pass `zcrc::zcrc-module` to `target_link_libraries`.
-The module cannot currently be installed, so this is only available when using FetchContent.
-
 To build tests, add `-DZCRC_TEST=ON`.
 The resulting test binary will be `build/bin/tests`.
 Our testing framework is Catch2;
 it will be downloaded automatically using FetchContent.
-If you also configured with `-DZCRC_MODULE=ON`,
+If the project was configured with`-DZCRC_TEST_MODULE=ON`,
 the module tests will be added to the binary.
 We have a 2 by 2 testing matrix:
 compile versus run time, and header versus module.
-To test just the header, run `./build/bin/tests [header]`.
-To test just the module, run `./build/bin/tests [module]`.
+The compile-time tests of course run at build time.
+With the runtime tests you have more flexibility:
+to test just the header, run `./build/bin/tests [header]`, and
+to test just the module, run `./build/bin/tests [module]`.
 
 To build the benchmarks, add `-DZCRC_BENCHMARK=ON`.
 The benchmarking framework is also Catch2,
@@ -224,11 +223,12 @@ and the resulting binary will be `build/bin/benchmarks`.
 
 Package maintainers can control where ZCRC installs its files with the following options:
 
-|             Option             |                Default               | Controls  |
-|--------------------------------|--------------------------------------|-----------|
-| `CMAKE_INSTALL_INCLUDEDIR`     | N/A (CMake builtin)                  | `*.hpp`   |
-| `ZCRC_PKGCONFIG_INSTALL_DIR`   | `${CMAKE_INSTALL_LIBDIR}/pkgconfig`  | `zcrc.pc` |
-| `ZCRC_CMAKE_FILES_INSTALL_DIR` | `${CMAKE_INSTALL_LIBDIR}/cmake/zcrc` | `*.cmake` |
+|             Option             |                  Default               | Controls  |
+|--------------------------------|----------------------------------------|-----------|
+| `CMAKE_INSTALL_INCLUDEDIR`     | N/A (CMake builtin)                    | `*.hpp`   |
+| `ZCRC_PKGCONFIG_INSTALL_DIR`   | `${CMAKE_INSTALL_LIBDIR}/pkgconfig`    | `zcrc.pc` |
+| `ZCRC_CMAKE_FILES_INSTALL_DIR` | `${CMAKE_INSTALL_LIBDIR}/cmake/zcrc`   | `*.cmake` |
+| `ZCRC_INSTALL_MODULE_DIR`      | `${CMAKE_INSTALL_INCLUDEDIR}/zcrc/src` | `*.cppm`  |
 
 ## Miscellaneous
 

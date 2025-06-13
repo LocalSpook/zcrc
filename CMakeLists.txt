@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28.2)
+cmake_minimum_required(VERSION 3.23...4.0) # File sets were added in 3.23
 
 project(zcrc
     VERSION 0.1.0
@@ -13,11 +13,12 @@ include(FetchContent)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
-option(ZCRC_MODULE "build the library as a module" OFF)
 option(ZCRC_TEST "build the tests" OFF)
+option(ZCRC_TEST_MODULE "build the module tests" OFF)
 option(ZCRC_BENCHMARK "build the benchmarks" OFF)
 set(ZCRC_PKGCONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE PATH "directory to install .pc files to")
-set(ZCRC_CMAKE_FILES_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc CACHE PATH "directory to install .cmake files to" )
+set(ZCRC_CMAKE_FILES_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc CACHE PATH "directory to install .cmake files to")
+set(ZCRC_INSTALL_MODULE_DIR ${CMAKE_INSTALL_INCLUDEDIR}/zcrc/src CACHE PATH "directory to install .cppm files to")
 
 add_library(zcrc INTERFACE)
 add_library(zcrc::zcrc ALIAS zcrc)
@@ -27,14 +28,20 @@ target_sources(zcrc
 )
 target_compile_features(zcrc INTERFACE cxx_std_20)
 
-if(ZCRC_MODULE)
-    add_library(zcrc-module)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
+    set(provide_zcrc_module ON)
+else()
+    set(provide_zcrc_module OFF)
+endif()
+
+if(provide_zcrc_module)
+    add_library(zcrc-module EXCLUDE_FROM_ALL)
     add_library(zcrc::zcrc-module ALIAS zcrc-module)
     target_sources(zcrc-module
-        PUBLIC FILE_SET CXX_MODULES BASE_DIRS src FILES
+        PUBLIC FILE_SET CXX_MODULES FILES
             src/zcrc.cppm
     )
-    target_link_libraries(zcrc-module PUBLIC zcrc)
+    target_link_libraries(zcrc-module PRIVATE zcrc)
     target_compile_features(zcrc-module PUBLIC cxx_std_20)
 endif()
 
@@ -51,9 +58,27 @@ write_basic_package_version_file(zcrc-config-version.cmake
     ARCH_INDEPENDENT
 )
 
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake [[
+cmake_path(
+    RELATIVE_PATH ZCRC_INSTALL_MODULE_DIR
+    BASE_DIRECTORY ${ZCRC_CMAKE_FILES_INSTALL_DIR}
+    OUTPUT_VARIABLE path_to_module_dir_from_cmake_files_dir
+)
+
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake.in [[
 include(${CMAKE_CURRENT_LIST_DIR}/zcrc-targets.cmake)
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT TARGET zcrc::zcrc-module)
+    add_library(zcrc::zcrc-module IMPORTED EXCLUDE_FROM_ALL)
+    target_sources(zcrc::zcrc-module
+        PRIVATE FILE_SET CXX_MODULES FILES
+            ${CMAKE_CURRENT_LIST_DIR}/@path_to_module_dir_from_cmake_files_dir@/zcrc.cppm
+    )
+    target_link_libraries(zcrc::zcrc-module PRIVATE zcrc::zcrc)
+    target_compile_features(zcrc::zcrc-module PUBLIC cxx_std_20)
+endif()
 ]])
+
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake @ONLY)
 
 cmake_path(
     RELATIVE_PATH CMAKE_INSTALL_INCLUDEDIR
@@ -72,6 +97,13 @@ Cflags: -I"${pcfiledir}/@path_to_include_dir_from_pkgconfig_dir@"
 configure_file(${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc.in ${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc @ONLY)
 
 install(
+	EXPORT zcrc-targets
+	FILE zcrc-targets.cmake
+	DESTINATION ${ZCRC_CMAKE_FILES_INSTALL_DIR}
+	NAMESPACE zcrc::
+)
+
+install(
 	FILES
 		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake
 		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config-version.cmake
@@ -87,10 +119,10 @@ install(
 )
 
 install(
-	EXPORT zcrc-targets
-	FILE zcrc-targets.cmake
-	DESTINATION ${ZCRC_CMAKE_FILES_INSTALL_DIR}
-	NAMESPACE zcrc::
+    FILES
+        src/zcrc.cppm
+    DESTINATION
+        ${ZCRC_INSTALL_MODULE_DIR}
 )
 
 if(ZCRC_TEST OR ZCRC_BENCHMARK)
@@ -118,7 +150,7 @@ if(ZCRC_TEST)
     target_sources(tests PRIVATE test/tests.cpp)
     target_link_libraries(tests PRIVATE Catch2::Catch2WithMain zcrc::zcrc)
     _zcrc_disable_module_dependency_scanning(tests)
-    if(ZCRC_MODULE)
+    if(ZCRC_TEST_MODULE)
         add_library(module-tests OBJECT)
         target_sources(module-tests PRIVATE test/tests.cpp)
         target_compile_definitions(module-tests PRIVATE ZCRC_TEST_MODULE)
