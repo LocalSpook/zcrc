@@ -55,6 +55,13 @@
 // This is defined when building as a module.
 #ifndef ZCRC_JUST_THE_INCLUDES
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+// 4293 and 4333 warn about undefined shifts in branches that are never taken.
+// 4244 and 4334 warn about benign conversions.
+#pragma warning(disable : 4293 4333 4244 4334)
+#endif
+
 static_assert(std::numeric_limits<unsigned char>::digits == 8,
     "Architectures where bytes are not 8 bits are not supported.");
 static_assert(std::endian::native == std::endian::little || std::endian::native == std::endian::big,
@@ -285,10 +292,10 @@ struct process_zero_bytes_fn {
     }
 };
 
-template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t Slices>
-inline constexpr auto tables {[]<std::size_t... Slice>(std::index_sequence<Slice...>){
+template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t SliceCount>
+inline constexpr auto tables {[]<std::size_t... Slices>(std::index_sequence<Slices...>){
     least_uint<Width> r {RefIn ? 1 : (1ULL << (Width - 1))};
-    return std::tuple {((void)Slice, [&] {
+    const auto make_entry {[&]<std::size_t Slice>{
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
         std::array<detail::least_uint<RefIn ? Width : (std::min)(Width, 7 + std::bit_width(Poly) + (8 * Slice))>, 256> table;
         // Step 1: compute the power of two entries.
@@ -307,8 +314,9 @@ inline constexpr auto tables {[]<std::size_t... Slice>(std::index_sequence<Slice
             }
         }
         return table;
-    }())...};
-}(std::make_index_sequence<Slices>{})};
+    }};
+    return std::tuple {make_entry.template operator()<Slices>()...};
+}(std::make_index_sequence<SliceCount>{})};
 
 // A generalized operator[] that works on non-random-access iterators as
 // long as we only try to get the first element.
@@ -763,6 +771,10 @@ ZCRC_EXPORT using crc64_xz                = crc<64, 0x42F0E1EBA9EA3693, 0xFFFFFF
 #undef ZCRC_STATIC_CALL_OPERATOR
 #undef ZCRC_CONST_CALL_OPERATOR
 #undef ZCRC_STATIC23
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
 
 #endif // ZCRC_JUST_THE_INCLUDES
 
