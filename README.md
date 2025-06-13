@@ -226,8 +226,8 @@ Package maintainers can control where ZCRC installs its files with the following
 |             Option             |                  Default               | Controls  |
 |--------------------------------|----------------------------------------|-----------|
 | `CMAKE_INSTALL_INCLUDEDIR`     | N/A (CMake builtin)                    | `*.hpp`   |
-| `ZCRC_PKGCONFIG_INSTALL_DIR`   | `${CMAKE_INSTALL_LIBDIR}/pkgconfig`    | `zcrc.pc` |
-| `ZCRC_CMAKE_FILES_INSTALL_DIR` | `${CMAKE_INSTALL_LIBDIR}/cmake/zcrc`   | `*.cmake` |
+| `ZCRC_INSTALL_PKGCONFIG_DIR`   | `${CMAKE_INSTALL_LIBDIR}/pkgconfig`    | `zcrc.pc` |
+| `ZCRC_INSTALL_CMAKE_FILES_DIR` | `${CMAKE_INSTALL_LIBDIR}/cmake/zcrc`   | `*.cmake` |
 | `ZCRC_INSTALL_MODULE_DIR`      | `${CMAKE_INSTALL_INCLUDEDIR}/zcrc/src` | `*.cppm`  |
 
 ## Miscellaneous
