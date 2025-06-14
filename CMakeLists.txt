@@ -38,7 +38,7 @@ if(provide_zcrc_module)
     add_library(zcrc-module EXCLUDE_FROM_ALL)
     add_library(zcrc::zcrc-module ALIAS zcrc-module)
     target_sources(zcrc-module
-        PUBLIC FILE_SET CXX_MODULES FILES
+        PUBLIC FILE_SET CXX_MODULES BASE_DIRS src FILES
             src/zcrc.cppm
     )
     target_link_libraries(zcrc-module PRIVATE zcrc)
@@ -67,14 +67,15 @@ cmake_path(
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake.in [[
 include(${CMAKE_CURRENT_LIST_DIR}/zcrc-targets.cmake)
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT TARGET zcrc::zcrc-module)
-    add_library(zcrc::zcrc-module IMPORTED EXCLUDE_FROM_ALL)
-    target_sources(zcrc::zcrc-module
-        PUBLIC FILE_SET CXX_MODULES FILES
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT TARGET zcrc-module)
+    add_library(zcrc-module EXCLUDE_FROM_ALL)
+    add_library(zcrc::zcrc-module ALIAS zcrc-module)
+    target_sources(zcrc-module
+        PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_LIST_DIR}/@path_to_module_dir_from_cmake_files_dir@ FILES
             ${CMAKE_CURRENT_LIST_DIR}/@path_to_module_dir_from_cmake_files_dir@/zcrc.cppm
     )
-    target_link_libraries(zcrc::zcrc-module PRIVATE zcrc::zcrc)
-    target_compile_features(zcrc::zcrc-module PUBLIC cxx_std_20)
+    target_link_libraries(zcrc-module PRIVATE zcrc::zcrc)
+    target_compile_features(zcrc-module PUBLIC cxx_std_20)
 endif()
 ]])
 
