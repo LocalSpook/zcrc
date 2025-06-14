@@ -17,7 +17,7 @@ option(ZCRC_MODULE "build the library as a module" OFF)
 option(ZCRC_TEST "build the tests" OFF)
 option(ZCRC_BENCHMARK "build the benchmarks" OFF)
 set(ZCRC_INSTALL_PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE PATH "directory to install .pc files to")
-set(ZCRC_INSTALL_CMAKE_FILES_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc CACHE PATH "directory to install .cmake files to")
+set(ZCRC_INSTALL_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc CACHE PATH "directory to install .cmake files to")
 set(ZCRC_INSTALL_MODULE_DIR ${CMAKE_INSTALL_INCLUDEDIR}/zcrc/src CACHE PATH "directory to install .cppm files to")
 
 add_library(zcrc INTERFACE)
@@ -54,7 +54,7 @@ write_basic_package_version_file(zcrc-config-version.cmake
 
 cmake_path(
     RELATIVE_PATH ZCRC_INSTALL_MODULE_DIR
-    BASE_DIRECTORY ${ZCRC_INSTALL_CMAKE_FILES_DIR}
+    BASE_DIRECTORY ${ZCRC_INSTALL_CMAKE_DIR}
     OUTPUT_VARIABLE path_to_module_dir_from_cmake_files_dir
 )
 
@@ -94,7 +94,7 @@ configure_file(${CMAKE_CURRENT_BINARY_DIR}/zcrc.pc.in ${CMAKE_CURRENT_BINARY_DIR
 install(
 	EXPORT zcrc-targets
 	FILE zcrc-targets.cmake
-	DESTINATION ${ZCRC_INSTALL_CMAKE_FILES_DIR}
+	DESTINATION ${ZCRC_INSTALL_CMAKE_DIR}
 	NAMESPACE zcrc::
 )
 
@@ -103,7 +103,7 @@ install(
 		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake
 		${CMAKE_CURRENT_BINARY_DIR}/zcrc-config-version.cmake
     DESTINATION
-        ${ZCRC_INSTALL_CMAKE_FILES_DIR}
+        ${ZCRC_INSTALL_CMAKE_DIR}
 )
 
 install(

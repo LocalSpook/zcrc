@@ -229,12 +229,12 @@ and the resulting binary will be `build/bin/benchmarks`.
 
 Package maintainers can control where ZCRC installs its files with the following options:
 
-|             Option             |                  Default               | Controls  |
-|--------------------------------|----------------------------------------|-----------|
-| `CMAKE_INSTALL_INCLUDEDIR`     | N/A (CMake builtin)                    | `*.hpp`   |
-| `ZCRC_INSTALL_PKGCONFIG_DIR`   | `${CMAKE_INSTALL_LIBDIR}/pkgconfig`    | `zcrc.pc` |
-| `ZCRC_INSTALL_CMAKE_FILES_DIR` | `${CMAKE_INSTALL_LIBDIR}/cmake/zcrc`   | `*.cmake` |
-| `ZCRC_INSTALL_MODULE_DIR`      | `${CMAKE_INSTALL_INCLUDEDIR}/zcrc/src` | `*.cppm`  |
+|             Option           |                  Default               | Controls  |
+|------------------------------|----------------------------------------|-----------|
+| `CMAKE_INSTALL_INCLUDEDIR`   | N/A (CMake builtin)                    | `*.hpp`   |
+| `ZCRC_INSTALL_PKGCONFIG_DIR` | `${CMAKE_INSTALL_LIBDIR}/pkgconfig`    | `zcrc.pc` |
+| `ZCRC_INSTALL_CMAKE_DIR`     | `${CMAKE_INSTALL_LIBDIR}/cmake/zcrc`   | `*.cmake` |
+| `ZCRC_INSTALL_MODULE_DIR`    | `${CMAKE_INSTALL_INCLUDEDIR}/zcrc/src` | `*.cppm`  |
 
 ## Miscellaneous
 
