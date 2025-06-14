@@ -13,8 +13,8 @@ include(FetchContent)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
+option(ZCRC_MODULE "build the library as a module" OFF)
 option(ZCRC_TEST "build the tests" OFF)
-option(ZCRC_TEST_MODULE "build the module tests" OFF)
 option(ZCRC_BENCHMARK "build the benchmarks" OFF)
 set(ZCRC_INSTALL_PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE PATH "directory to install .pc files to")
 set(ZCRC_INSTALL_CMAKE_FILES_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc CACHE PATH "directory to install .cmake files to")
@@ -28,13 +28,7 @@ target_sources(zcrc
 )
 target_compile_features(zcrc INTERFACE cxx_std_20)
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
-    set(provide_zcrc_module ON)
-else()
-    set(provide_zcrc_module OFF)
-endif()
-
-if(provide_zcrc_module)
+if(ZCRC_MODULE)
     add_library(zcrc-module EXCLUDE_FROM_ALL)
     add_library(zcrc::zcrc-module ALIAS zcrc-module)
     target_sources(zcrc-module
@@ -67,7 +61,7 @@ cmake_path(
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake.in [[
 include(${CMAKE_CURRENT_LIST_DIR}/zcrc-targets.cmake)
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT TARGET zcrc-module)
+if(module IN_LIST zcrc_FIND_COMPONENTS AND NOT TARGET zcrc::zcrc-module)
     add_library(zcrc-module EXCLUDE_FROM_ALL)
     add_library(zcrc::zcrc-module ALIAS zcrc-module)
     target_sources(zcrc-module
@@ -151,10 +145,10 @@ if(ZCRC_TEST)
     target_sources(tests PRIVATE test/tests.cpp)
     target_link_libraries(tests PRIVATE Catch2::Catch2WithMain zcrc::zcrc)
     _zcrc_disable_module_dependency_scanning(tests)
-    if(ZCRC_TEST_MODULE)
+    if(ZCRC_MODULE)
         add_library(module-tests OBJECT)
         target_sources(module-tests PRIVATE test/tests.cpp)
-        target_compile_definitions(module-tests PRIVATE ZCRC_TEST_MODULE)
+        target_compile_definitions(module-tests PRIVATE ZCRC_MODULE)
         target_link_libraries(module-tests PRIVATE Catch2::Catch2 zcrc::zcrc-module)
         target_link_libraries(tests PRIVATE module-tests)
     endif()

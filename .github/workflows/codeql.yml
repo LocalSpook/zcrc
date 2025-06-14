@@ -29,7 +29,7 @@ jobs:
 
     - name: Configure build
       run: |
-        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-19 -DZCRC_TEST=ON -DZCRC_TEST_MODULE=ON
+        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-19 -DZCRC_TEST=ON -DZCRC_MODULE=ON
 
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3

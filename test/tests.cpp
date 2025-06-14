@@ -15,7 +15,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 
-#ifdef ZCRC_TEST_MODULE
+#ifdef ZCRC_MODULE
 import zcrc;
 #define HEADER_OR_MODULE_TAG "[module]"
 #if __has_include(<zcrc/zcrc.hpp>)

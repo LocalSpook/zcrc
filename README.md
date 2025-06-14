@@ -154,9 +154,10 @@ std::uint32_t crc {zcrc::finalize(std::ranges::fold_left(data, zcrc::crc32c {}, 
 ### With FetchContent (recommended)
 
 ```cmake
+set(ZCRC_MODULE ON) # If using the module.
 FetchContent_Declare(zcrc
     GIT_REPOSITORY https://github.com/LocalSpook/zcrc
-    GIT_TAG ... # You should use the latest commit on the main branch.
+    GIT_TAG v0.1.0
     SYSTEM
 )
 FetchContent_MakeAvailable(zcrc)
@@ -167,8 +168,13 @@ target_link_libraries(... zcrc::zcrc[-module])
 ### With find_package
 
 ```cmake
+# If consuming the library as a header (#include <zcrc/zcrc.hpp>):
 find_package(zcrc REQUIRED)
-target_link_libraries(... zcrc::zcrc[-module])
+target_link_libraries(... zcrc::zcrc)
+
+# If consuming the library as a module (import zcrc;):
+find_package(zcrc REQUIRED COMPONENTS module)
+target_link_libraries(... zcrc::zcrc-module)
 ```
 
 ### With vendoring (discouraged)
@@ -208,7 +214,7 @@ To build tests, add `-DZCRC_TEST=ON`.
 The resulting test binary will be `build/bin/tests`.
 Our testing framework is Catch2;
 it will be downloaded automatically using FetchContent.
-If the project was configured with`-DZCRC_TEST_MODULE=ON`,
+If the project was configured with`-DZCRC_MODULE=ON`,
 the module tests will be added to the binary.
 We have a 2 by 2 testing matrix:
 compile versus run time, and header versus module.

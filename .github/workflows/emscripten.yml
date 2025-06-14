@@ -79,7 +79,7 @@ jobs:
     - name: Configure build
       run: |
         source ./emsdk/emsdk_env.sh
-        emcmake cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DZCRC_TEST=ON -DZCRC_TEST_MODULE=${{matrix.emscripten.module}}
+        emcmake cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DZCRC_TEST=ON -DZCRC_MODULE=${{matrix.emscripten.module}}
 
     - name: Build (this includes compile-time tests)
       run: |
