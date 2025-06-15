@@ -127,7 +127,7 @@ Or you can adapt existing CRCs:
 using crc32_reflected = zcrc::crc<
     zcrc::crc32::width,
     zcrc::crc32::poly,
-    zcrc::crc32::initial,
+    zcrc::crc32::init,
     !zcrc::crc32::refin, // ⭐
     !zcrc::crc32::refout, // ⭐
     zcrc::crc32::xorout

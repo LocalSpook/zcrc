@@ -44,6 +44,23 @@ TEST_CASE("compile-time checks", HEADER_OR_MODULE_TAG) {
     CHECK_MATRIX(std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<char8_t>&>);
     CHECK_MATRIX(!std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<bool>&>);
     CHECK_MATRIX(!std::regular_invocable<decltype(zcrc::crc32c::compute), std::vector<std::uint16_t>&>);
+
+    // Example from the README.
+    using crc32_reflected = zcrc::crc<
+        zcrc::crc32::width,
+        zcrc::crc32::poly,
+        zcrc::crc32::init,
+        !zcrc::crc32::refin,
+        !zcrc::crc32::refout,
+        zcrc::crc32::xorout
+    >;
+
+    CHECK_MATRIX(crc32_reflected::width == zcrc::crc32::width);
+    CHECK_MATRIX(crc32_reflected::poly == zcrc::crc32::poly);
+    CHECK_MATRIX(crc32_reflected::init == zcrc::crc32::init);
+    CHECK_MATRIX(crc32_reflected::refin == !zcrc::crc32::refin);
+    CHECK_MATRIX(crc32_reflected::refout == !zcrc::crc32::refout);
+    CHECK_MATRIX(crc32_reflected::xorout == zcrc::crc32::xorout);
 }
 
 TEMPLATE_TEST_CASE("basic functionality checks", HEADER_OR_MODULE_TAG,
