@@ -442,3 +442,25 @@ TEMPLATE_TEST_CASE("process_zero_bytes and parallel", HEADER_OR_MODULE_TAG,
         zcrc::process(zcrc::slice_by<1>, TestType {}, long_message)
     );
 }
+
+// These tests are mostly targeted at 32-bit code, but it doesn't hurt to run them
+// in 64-bit mode too. We don't run them at compile time because they take too long
+// and exceed constexpr evaluation step limits.
+TEST_CASE("ranges whose length doesn't fit in a std::size_t", HEADER_OR_MODULE_TAG) {
+    CHECK(zcrc::crc64_nvme::compute(
+        std::views::iota(0ULL, 0x1'0000'FFFFULL) |
+        std::views::transform([] (auto i) { return static_cast<char>(i); })
+    ) == 0xEB8B74F62360BF71);
+    CHECK(zcrc::crc64_nvme::compute(
+        zcrc::parallel<zcrc::default_algorithm>,
+        std::views::iota(0ULL, 0x1'0000'FFFFULL) |
+        std::views::transform([] (auto i) { return static_cast<char>(i); })
+    ) == 0xEB8B74F62360BF71);
+#ifdef __cpp_lib_ranges_repeat
+    CHECK(zcrc::crc64_nvme::compute(std::views::repeat('\xAB', 0x1'0000'FFFF)) == 0x975B7FE7C071F094);
+    CHECK(zcrc::crc64_nvme::compute(
+        zcrc::parallel<zcrc::default_algorithm>,
+        std::views::repeat('\xAB', 0x1'0000'FFFF)
+    ) == 0x975B7FE7C071F094);
+#endif
+}

@@ -258,26 +258,26 @@ clmul_over_field(const detail::least_uint<Width> lhs, const detail::least_uint<W
     return r & detail::bottom_n_mask<detail::least_uint<Width>>(Width);
 }
 
-template <std::size_t Width, auto Poly, bool RefIn>
+template <std::size_t Width, auto Poly, bool RefIn, std::size_t N>
 inline constexpr auto folding_constants {[] {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
-    std::array<detail::least_uint<Width>, std::numeric_limits<std::size_t>::digits> folding_constants_;
+    std::array<detail::least_uint<Width>, N> folding_constants_;
     for (detail::least_uint<Width> r {1ULL << (RefIn ? (Width - 5) : 4)}; auto& entry : folding_constants_) {
         r = entry = detail::clmul_over_field<Width, Poly, RefIn>(r, r);
     }
     return folding_constants_;
 }()};
 
-template <std::size_t Width, auto Poly, bool RefIn>
+template <std::size_t Width, auto Poly, bool RefIn, typename N>
 [[nodiscard]] constexpr detail::least_uint<Width>
-process_zero_bytes_fn_impl(detail::least_uint<Width> state, const std::size_t n) noexcept {
+process_zero_bytes_fn_impl(detail::least_uint<Width> state, const N n) noexcept {
     if constexpr (Width < 8) {
         return detail::process_zero_bytes_fn_impl<8, Poly << (8 - Width), RefIn>(state, n);
     } else {
-        for (std::size_t i {0}; i < std::numeric_limits<std::size_t>::digits; ++i) {
+        for (std::size_t i {0}; i < std::numeric_limits<N>::digits; ++i) {
             if (detail::bit_is_set(n, i)) {
                 state = detail::clmul_over_field<Width, Poly, RefIn>(
-                    state, detail::folding_constants<Width, Poly, RefIn>[i]);
+                    state, detail::folding_constants<Width, Poly, RefIn, std::numeric_limits<N>::digits>[i]);
             }
         }
         return state;
@@ -285,10 +285,12 @@ process_zero_bytes_fn_impl(detail::least_uint<Width> state, const std::size_t n)
 }
 
 struct process_zero_bytes_fn {
-    template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut>
+    // Precondition: n >= 0
+    template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut, std::integral N>
     [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
-    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> state, const std::size_t n) ZCRC_CONST_CALL_OPERATOR noexcept {
-        return detail::process_zero_bytes_fn_impl<Width, Poly, RefIn>(state.m_crc, n);
+    operator()(const crc<Width, Poly, Init, RefIn, RefOut, XOROut> state, const N n) ZCRC_CONST_CALL_OPERATOR noexcept {
+        return detail::process_zero_bytes_fn_impl<Width, Poly, RefIn>(
+            state.m_crc, static_cast<std::make_unsigned_t<N>>(n));
     }
 };
 
@@ -348,7 +350,7 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t N, 
     if constexpr (std::random_access_iterator<I>) {
         const auto fold_by_n {[&] { fold(std::make_index_sequence<N>{}); }};
 
-        const auto fold_by_powers_of_two {[&] (const std::size_t len) {
+        const auto fold_by_powers_of_two {[&] (const std::iter_difference_t<I> len) {
             [&]<std::size_t... P>(std::index_sequence<P...>){
                 (((len & (1 << P))
                     ? (void)(fold(std::make_index_sequence<1 << P>{}), it += 1 << P)
@@ -399,17 +401,18 @@ process_fn_impl(parallel_t<A>, const least_uint<Width> state, I it, S end) noexc
     if constexpr (!std::sized_sentinel_for<S, I> || !std::random_access_iterator<I>) {
         return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, std::move(it), std::move(end));
     } else {
-        const auto len {static_cast<std::size_t>(end - it)};
-        const std::size_t hardware_threads {std::jthread::hardware_concurrency()};
-        const std::size_t chunk_length {len / hardware_threads};
-        const auto indices {std::views::iota(static_cast<std::size_t>(0), hardware_threads)};
+        const auto len {end - it};
+        const unsigned int hardware_threads {std::jthread::hardware_concurrency()};
+        const auto chunk_length {len / static_cast<std::iter_difference_t<I>>(hardware_threads)};
+        const auto indices {std::views::iota(0U, hardware_threads)};
         return std::transform_reduce(
             std::execution::par,
             std::ranges::begin(indices),
             std::ranges::end(indices),
             detail::least_uint<Width>{},
-            [] (const auto lhs, const auto rhs) noexcept { return lhs ^ rhs; },
-            [&] (const std::size_t i) noexcept {
+            [] (const least_uint<Width> lhs, const least_uint<Width> rhs) noexcept { return lhs ^ rhs; },
+            [&] (const unsigned int i_) noexcept {
+                const auto i {static_cast<std::iter_difference_t<I>>(i_)};
                 const auto chunk_begin {(i == 0) ? it : (it + (len % chunk_length) + (i * chunk_length))};
                 const auto chunk_end {it + (len % chunk_length) + ((i + 1) * chunk_length)};
                 return detail::process_zero_bytes_fn_impl<Width, Poly, RefIn>(
