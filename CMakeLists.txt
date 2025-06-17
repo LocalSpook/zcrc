@@ -13,12 +13,27 @@ include(FetchContent)
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
+# Workaround: typically, a command like:
+#    set(VAR ... CACHE ...)
+# is a no-op if the user already specified the variable on the command line:
+#    cmake -DVAR=bar
+# *However*, when the variable was specified on the command line without a type,
+# and the set() call specifies a type of PATH, the variable will be converted to
+# an absolute path. If we need a relative path, we force the user to write:
+#    cmake -DVAR:PATH=bar
+# which is an unintuitive footgun, so we wrap set() to not do that.
+macro(_zcrc_set_if_unset variable)
+    if(NOT DEFINED ${variable})
+        set(${variable} ${ARGN})
+    endif()
+endmacro()
+
 option(ZCRC_MODULE "build the library as a module" OFF)
 option(ZCRC_TEST "build the tests" OFF)
 option(ZCRC_BENCHMARK "build the benchmarks" OFF)
-set(ZCRC_INSTALL_PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE PATH "directory to install .pc files to")
-set(ZCRC_INSTALL_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc CACHE PATH "directory to install .cmake files to")
-set(ZCRC_INSTALL_MODULE_DIR ${CMAKE_INSTALL_INCLUDEDIR}/zcrc/src CACHE PATH "directory to install .cppm files to")
+_zcrc_set_if_unset(ZCRC_INSTALL_PKGCONFIG_DIR ${CMAKE_INSTALL_LIBDIR}/pkgconfig CACHE PATH "directory to install .pc files to")
+_zcrc_set_if_unset(ZCRC_INSTALL_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/zcrc CACHE PATH "directory to install .cmake files to")
+_zcrc_set_if_unset(ZCRC_INSTALL_MODULE_DIR ${CMAKE_INSTALL_INCLUDEDIR}/zcrc/src CACHE PATH "directory to install .cppm files to")
 
 add_library(zcrc INTERFACE)
 add_library(zcrc::zcrc ALIAS zcrc)
