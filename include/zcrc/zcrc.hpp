@@ -389,15 +389,11 @@ template <std::size_t Width, least_uint<Width> Poly, bool RefIn, std::size_t N, 
 }
 
 template <std::size_t Width, least_uint<Width> Poly, bool RefIn, typename A, typename I, typename S>
-[[nodiscard]] constexpr detail::least_uint<Width>
+[[nodiscard]] inline detail::least_uint<Width>
 process_fn_impl(parallel_t<A>, const least_uint<Width> state, I it, S end) noexcept {
 #if !defined(__cpp_lib_parallel_algorithm) || __cpp_lib_parallel_algorithm < 201603L
     return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, std::move(it), std::move(end));
 #else
-    if (std::is_constant_evaluated()) {
-        return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, std::move(it), std::move(end));
-    }
-
     if constexpr (!std::sized_sentinel_for<S, I> || !std::random_access_iterator<I>) {
         return detail::process_fn_impl<Width, Poly, RefIn>(A {}, state, std::move(it), std::move(end));
     } else {
@@ -450,7 +446,7 @@ struct process_fn {
     operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) ZCRC_CONST_CALL_OPERATOR
         ZCRC_RETURNS(std::is_constant_evaluated()
             ? detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
-                algo, crc.m_crc,
+                slice_by<1>, crc.m_crc,
                 std::to_address(it),
                 std::to_address(it) + (end - it))
             : detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
@@ -464,7 +460,10 @@ struct process_fn {
     requires detail::byte_like<std::iter_value_t<I>>
     [[nodiscard]] ZCRC_STATIC_CALL_OPERATOR constexpr crc<Width, Poly, Init, RefIn, RefOut, XOROut>
     operator()(const algorithm auto algo, const crc<Width, Poly, Init, RefIn, RefOut, XOROut> crc, I it, S end) ZCRC_CONST_CALL_OPERATOR
-        ZCRC_RETURNS(detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
+        ZCRC_RETURNS(std::is_constant_evaluated()
+            ? detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
+                slice_by<1>, crc.m_crc, std::move(it), std::move(end))
+            : detail::process_fn_impl<Width < 8 ? 8 : Width, Width < 8 ? Poly << (8 - Width) : Poly, RefIn>(
                 algo, crc.m_crc, std::move(it), std::move(end)))
 
     template <std::size_t Width, auto Poly, auto Init, bool RefIn, bool RefOut, auto XOROut,
