@@ -22,6 +22,7 @@ include(GNUInstallDirs)
 # an absolute path. If we need a relative path, we force the user to write:
 #    cmake -DVAR:PATH=bar
 # which is an unintuitive footgun, so we wrap set() to not do that.
+# Note that CMAKE_INSTALL_*DIR variables already have similar custom logic.
 macro(_zcrc_set_if_unset variable)
     if(NOT DEFINED ${variable})
         set(${variable} ${ARGN})
@@ -50,17 +51,11 @@ if(ZCRC_MODULE)
         PUBLIC FILE_SET CXX_MODULES BASE_DIRS src FILES
             src/zcrc.cppm
     )
-    target_link_libraries(zcrc-module PRIVATE zcrc)
+    target_link_libraries(zcrc-module PRIVATE zcrc::zcrc)
     target_compile_features(zcrc-module PUBLIC cxx_std_20)
 endif()
 
-install(
-    TARGETS zcrc
-    EXPORT zcrc-targets
-    PUBLIC_HEADER
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zcrc
-        FILE_SET HEADERS
-)
+install(TARGETS zcrc EXPORT zcrc-targets FILE_SET HEADERS)
 
 write_basic_package_version_file(zcrc-config-version.cmake
     COMPATIBILITY SameMajorVersion
@@ -70,7 +65,7 @@ write_basic_package_version_file(zcrc-config-version.cmake
 cmake_path(
     RELATIVE_PATH ZCRC_INSTALL_MODULE_DIR
     BASE_DIRECTORY ${ZCRC_INSTALL_CMAKE_DIR}
-    OUTPUT_VARIABLE path_to_module_dir_from_cmake_files_dir
+    OUTPUT_VARIABLE path_to_module_dir_from_cmake_dir
 )
 
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/zcrc-config.cmake.in [[
@@ -80,8 +75,8 @@ if(module IN_LIST zcrc_FIND_COMPONENTS AND NOT TARGET zcrc::zcrc-module)
     add_library(zcrc-module EXCLUDE_FROM_ALL)
     add_library(zcrc::zcrc-module ALIAS zcrc-module)
     target_sources(zcrc-module
-        PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_LIST_DIR}/@path_to_module_dir_from_cmake_files_dir@ FILES
-            ${CMAKE_CURRENT_LIST_DIR}/@path_to_module_dir_from_cmake_files_dir@/zcrc.cppm
+        PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_LIST_DIR}/@path_to_module_dir_from_cmake_dir@ FILES
+            ${CMAKE_CURRENT_LIST_DIR}/@path_to_module_dir_from_cmake_dir@/zcrc.cppm
     )
     target_link_libraries(zcrc-module PRIVATE zcrc::zcrc)
     target_compile_features(zcrc-module PUBLIC cxx_std_20)
